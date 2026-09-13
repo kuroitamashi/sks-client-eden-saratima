@@ -13,7 +13,45 @@
 import { getContent } from '../lib/theme.js';
 
 const content = await getContent();
-const volets = content.hero?.volets ?? [];
+const defaultImages = [
+  '/hero/hero-soin-visage.jpg',
+  '/hero/hero-maquillage.jpg',
+  '/hero/hero-corps-cheveux.jpg',
+];
+const volets = (content.hero?.volets && content.hero.volets.length > 0)
+  ? content.hero.volets
+  : [
+      {
+        fond: 'surface',
+        grandTitre: 'SOIN DU VISAGE',
+        surtitre: 'Rituel quotidien',
+        titre: 'Une peau qu’on écoute',
+        texte: 'Des formules courtes, choisies pour le climat de Dakar : la chaleur, la poussière, le soleil. On te dit à quoi sert chaque produit et à quel moment le mettre.',
+        cta: 'Voir les soins',
+        href: '/produits/?rayon=soin-visage',
+        bgImage: '/hero/hero-soin-visage.jpg',
+      },
+      {
+        fond: 'primary',
+        grandTitre: 'MAQUILLAGE',
+        surtitre: 'Teint & Lèvres',
+        titre: 'Des teintes faites pour nous',
+        texte: 'Du fond de teint au rouge à lèvres, une gamme pensée pour les peaux noires et métissées. Choisis ta teinte, elle part avec ta commande.',
+        cta: 'Voir le maquillage',
+        href: '/produits/?rayon=maquillage',
+        bgImage: '/hero/hero-maquillage.jpg',
+      },
+      {
+        fond: 'accent',
+        grandTitre: 'CORPS & CHEVEUX',
+        surtitre: 'Artisanat & Pureté',
+        titre: 'Le karité, sans détour',
+        texte: 'Beurre de karité, huiles et savons. Ce qui se fait ici depuis toujours, présenté comme il le mérite.',
+        cta: 'Voir le rayon',
+        href: '/produits/?rayon=corps-cheveux',
+        bgImage: '/hero/hero-corps-cheveux.jpg',
+      },
+    ];
 ---
 
 <section
@@ -34,7 +72,7 @@ const volets = content.hero?.volets ?? [];
         {/* IMAGE PLEINE LARGEUR EN ARRIÈRE-PLAN */}
         <div class="hero-full__media">
           <img
-            src={volet.bgImage || volet.image}
+            src={volet.bgImage || volet.image || defaultImages[i % defaultImages.length]}
             alt=""
             class="hero-full__img"
             loading={i === 0 ? 'eager' : 'lazy'}

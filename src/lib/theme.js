@@ -61,6 +61,18 @@ function mergeThemeAndContent(defaultConfig, apiData) {
     hero: {
       ...defaultConfig.content.hero,
       ...(customContent.hero || {}),
+      volets: (customContent.hero?.volets && customContent.hero.volets.length > 0)
+        ? customContent.hero.volets.map((v, i) => {
+            const def = defaultConfig.content.hero?.volets?.[i] || defaultConfig.content.hero?.volets?.[0] || {};
+            return {
+              ...def,
+              ...v,
+              bgImage: v.bgImage || v.image || def.bgImage || '/hero/hero-soin-visage.jpg',
+              href: v.href || v.destination || def.href || '/produits/',
+              texte: v.texte || v.sousTitre || def.texte || '',
+            };
+          })
+        : defaultConfig.content.hero?.volets,
     },
   };
 
