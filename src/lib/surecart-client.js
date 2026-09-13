@@ -15,14 +15,26 @@ const BASE = 'https://api.surecart.com/v1';
 const TOKEN = import.meta.env.SC_SECRET_KEY;
 
 async function request(path) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      Authorization: `Bearer ${TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  if (!res.ok) throw new Error(`SureCart API error ${res.status}: ${path}`);
-  return res.json();
+  if (!TOKEN) {
+    console.warn('[SureCart] SC_SECRET_KEY non configurée. Aucun produit récupéré.');
+    return { data: [] };
+  }
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      headers: {
+        Authorization: `Bearer ${TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) {
+      console.error(`[SureCart] Erreur API ${res.status}: ${path}`);
+      return { data: [] };
+    }
+    return await res.json();
+  } catch (err) {
+    console.error(`[SureCart] Requête échouée: ${err.message}`);
+    return { data: [] };
+  }
 }
 
 /* `status[]=published` n'est pas une precaution de style.

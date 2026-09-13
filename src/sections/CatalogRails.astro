@@ -30,13 +30,25 @@ import { getContent } from '../lib/theme.js';
 const { produits = [] } = Astro.props;
 const content = await getContent();
 
-const rayons = content.categories
+let rayons = content.categories
   .filter((c) => c.surAccueil)
   .map((c) => ({
     ...c,
     produits: produits.filter((p) => p.metadata?.categorie === c.cle),
   }))
   .filter((c) => c.produits.length > 0);
+
+// Si des produits existent mais qu'aucun n'a de catégorie éditoriale renseignée,
+// on affiche un rail général regroupant les produits de la boutique.
+if (rayons.length === 0 && produits.length > 0) {
+  rayons = [
+    {
+      cle: 'tous',
+      libelle: content.catalogue?.titre ?? 'Nos Produits',
+      produits: produits,
+    },
+  ];
+}
 ---
 
 {rayons.length > 0 && (

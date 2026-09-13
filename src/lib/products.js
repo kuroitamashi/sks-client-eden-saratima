@@ -15,7 +15,7 @@
 import { products as fixtureProducts } from '../data/fixtures/cosmetiques.js';
 import { slugify } from './format.js';
 
-const SOURCE = import.meta.env.DATA_SOURCE ?? 'fixture';
+const SOURCE = import.meta.env.DATA_SOURCE ?? 'surecart';
 
 /** La forme unique qu'une page voit, quelle que soit la source. */
 function normalizeFromSureCart(raw) {
