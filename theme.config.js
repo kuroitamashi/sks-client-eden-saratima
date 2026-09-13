@@ -48,12 +48,12 @@ export const theme = {
   },
 
   colors: {
-    primary: '#8A2B52',   // framboise chic : boutons, aplats forts
-    secondary: '#9C8E93', // gris rosé doux : textes secondaires appuyés, filets
+    primary: '#B55672',   // rose poudré soutenu / bois de rose extrait de l'étiquette
+    secondary: '#947F87', // teinte secondaire douce poudrée
     bg: '#FFFFFF',        // fond de page blanc pur
-    surface: '#FCF7F9',   // rose poudré très clair : cartes, rails, blocs
-    text: '#1C1317',      // texte sombre lisible
-    accent: '#D45D86',    // rose vif : surtitres, badges, prix barrés
+    surface: '#FBF4F6',   // rose poudré très clair : cartes, rails, blocs
+    text: '#1F1418',      // brun/noir profond lisible
+    accent: '#78253E',    // bordeaux / lie-de-vin de la sérigraphie de l'étiquette
   },
 
   typography: { pair: 'geometrique' },
