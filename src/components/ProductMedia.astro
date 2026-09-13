@@ -1,0 +1,98 @@
+---
+/* L'image d'un produit, ou ce qui la remplace.
+ *
+ *  LE SEUL ENDROIT DU TEMPLATE OU UNE PHOTO DE PRODUIT EST DESSINEE.
+ *  La carte, la fiche, le rituel du moment et les suggestions passent tous
+ *  par ici : une photo ne peut donc pas etre cadree d'une facon sur la
+ *  grille et d'une autre sur la fiche.
+ *
+ *  ---------------------------------------------------------------------
+ *  TAARU N'A PAS ENCORE DE PHOTOS, ET LA VIGNETTE RESTE DONC VIDE.
+ *
+ *  Trois sources sans cle d'API ont ete essayees, 251 images telechargees et
+ *  REGARDEES une par une : Openverse en CC0 rend des flacons Dove et
+ *  Palmolive pour << beurre de karite >> et des archives bresiliennes de
+ *  1920 pour << mascara >> ; Wikimedia Commons rend des publicites de 1948
+ *  et des produits de marque ; le lot Unsplash CC0 heberge sur Commons rend
+ *  de vraies photos modernes, mais des portraits de mannequins, trois
+ *  photos produit exploitables sur cinquante-neuf.
+ *
+ *  Une version dessinait les contenants en vectoriel a la place. ECARTEE le
+ *  2026-09-04 par Mouhamadou, et la raison est la bonne : ce template se
+ *  montre a de vrais commercants, et un commercant qui voit un dessin croit
+ *  que sa boutique ressemblera a un dessin.
+ *
+ *  On ne met donc RIEN : un aplat de la couleur de surface, propre, qui se
+ *  lit comme une place reservee. Surtout pas un <img> vers un chemin qui ne
+ *  mene nulle part : le navigateur y affiche son icone d'image cassee,
+ *  differente sur chaque appareil, et la boutique a l'air en panne.
+ *
+ *  CE QUI DEBLOQUE : une cle d'API gratuite (unsplash.com/developers, deux
+ *  minutes), ou des fichiers deposes a la main dans public/produits/. La
+ *  fixture recoit alors ses chemins dans `images`, ce composant sert le
+ *  <img>, et rien d'autre ne bouge dans le template.
+ *  ---------------------------------------------------------------------
+ *
+ *  `ratio` vaut 'carre' (les grilles, facon Fenty) ou 'portrait' (la fiche
+ *  et le rituel, facon Aesop). Il n'y a pas de troisieme valeur : deux
+ *  cadrages suffisent, et trois commenceraient a se contredire.
+ */
+const {
+  product,
+  index = 0,
+  ratio = 'carre',
+  priorite = false,
+  classe = '',
+} = Astro.props;
+
+const source = product.images?.[index] ?? null;
+---
+
+<div class:list={['media', `media--${ratio}`, classe]}>
+  {source ? (
+    <img
+      src={source}
+      alt={product.name}
+      width={ratio === 'portrait' ? 600 : 600}
+      height={ratio === 'portrait' ? 750 : 600}
+      loading={priorite ? 'eager' : 'lazy'}
+      fetchpriority={priorite ? 'high' : 'auto'}
+      decoding="async"
+    />
+  ) : (
+    /* Rien dedans : la place de la photo, et c'est tout. Le nom du produit
+       est deja ecrit juste en dessous, sur la carte comme sur la fiche. */
+    <div class="media__vide" aria-hidden="true"></div>
+  )}
+</div>
+
+<style>
+  .media {
+    position: relative;
+    overflow: hidden;
+    background: var(--color-surface);
+    border-radius: var(--radius-image);
+  }
+
+  .media--carre { aspect-ratio: 1 / 1; }
+  .media--portrait { aspect-ratio: 4 / 5; }
+
+  .media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--duration-slow) var(--ease-out);
+  }
+
+  /* La place reservee a la photo. Elle prend la couleur de surface du
+     theme, pas un gris en dur : sur une boutique a palette sombre, un gris
+     clair ferait une tache. */
+  .media__vide {
+    position: absolute;
+    inset: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .media img { transition: none; }
+  }
+</style>

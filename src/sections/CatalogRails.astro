@@ -1,0 +1,233 @@
+---
+/* Les rangees de l'accueil : un rayon par ligne, qui defile lateralement.
+ *
+ *  Elle repond a un probleme precis : une grille de vingt et un produits
+ *  sur un telephone fait autant d'ecrans de defilement vertical avant
+ *  d'atteindre la suite de la page. La rangee en montre quatre sur
+ *  ordinateur, deux et des poussieres sur telephone, et laisse deviner
+ *  qu'il y en a d'autres.
+ *
+ *  LE SCROLLER EST DANS LE .container, et c'est important.
+ *  La premiere version le sortait du conteneur pour que la derniere carte
+ *  puisse glisser jusqu'au bord de l'ecran, et refaisait a la main le calcul
+ *  d'alignement du conteneur dans un padding. Ce calcul etait faux, les
+ *  images ne tombaient pas sous leur titre. En remettant le scroller
+ *  DANS le conteneur, l'alignement n'est plus calcule : il est celui de tout
+ *  le reste de la page, par construction. On perd le debordement jusqu'au
+ *  bord de l'ecran, on gagne de ne plus jamais pouvoir se tromper.
+ *
+ *  Le defilement reste celui du navigateur, `overflow-x` et `scroll-snap`.
+ *  Les fleches ne font que lui demander de glisser d'une page : il n'y a
+ *  aucun moteur de carrousel, rien a telecharger.
+ *
+ *  Le rayon n'apparait que s'il contient au moins un produit : une
+ *  categorie videe de son dernier article disparait d'elle-meme au lieu de
+ *  laisser une ligne vide.
+ */
+import ProductCard from '../components/ProductCard.astro';
+import { getContent } from '../lib/theme.js';
+
+const { produits = [] } = Astro.props;
+const content = await getContent();
+
+const rayons = content.categories
+  .filter((c) => c.surAccueil)
+  .map((c) => ({
+    ...c,
+    produits: produits.filter((p) => p.metadata?.categorie === c.cle),
+  }))
+  .filter((c) => c.produits.length > 0);
+---
+
+{rayons.length > 0 && (
+  <section class="section--l" id="catalogue">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">{content.catalogue.surtitre}</p>
+        <h2>{content.catalogue.titre}</h2>
+        <p class="lead">{content.catalogue.texte}</p>
+      </div>
+    </div>
+
+    {rayons.map((rayon) => (
+      <div class="rail" data-reveal>
+        <div class="container">
+          <div class="rail__head">
+            <h3 class="rail__title">{rayon.libelle}</h3>
+
+            <div class="rail__tools">
+              <a href={`/produits/?rayon=${rayon.cle}`} class="link rail__all">
+                {content.catalogue.voirTout}
+              </a>
+
+              {/* Les fleches ne sont qu'un confort : le rayon se fait deja
+                  glisser au doigt et a la molette. Elles sont donc masquees
+                  sur telephone, ou elles prendraient la place du titre sans
+                  rien apporter a un ecran tactile. */}
+              <div class="rail__arrows">
+                <button
+                  type="button"
+                  class="icon-btn rail__arrow"
+                  data-sens="-1"
+                  aria-label={`Reculer dans le rayon ${rayon.libelle}`}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path d="M15 5l-7 7 7 7" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn rail__arrow"
+                  data-sens="1"
+                  aria-label={`Avancer dans le rayon ${rayon.libelle}`}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* tabindex et role : une zone qui defile doit etre atteignable au
+              clavier, sinon son contenu est inaccessible sans souris. */}
+          <div class="rail__scroller" tabindex="0" role="group" aria-label={rayon.libelle}>
+            <ul class="rail__list">
+              {rayon.produits.map((produit) => (
+                <li class="rail__item"><ProductCard product={produit} /></li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    ))}
+  </section>
+)}
+
+<style>
+  .rail {
+    margin-top: var(--space-12);
+  }
+
+  .rail__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+    margin-bottom: var(--space-6);
+  }
+
+  .rail__title {
+    font-size: var(--h3);
+  }
+
+  .rail__tools {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex-shrink: 0;
+  }
+
+  .rail__all {
+    color: var(--color-text-muted);
+  }
+
+  .rail__arrows {
+    display: none;
+    gap: var(--space-1);
+
+    @media (width >= 900px) {
+      display: flex;
+    }
+  }
+
+  /* Pas de bordure sur un bouton icone, seul le fond bouge au survol : c'est
+     la regle SKS des bordures strategiques, et .icon-btn l'applique deja. On
+     n'ajoute ici que l'etat desactive, en bout de course. */
+  .rail__arrow[disabled] {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  .rail__scroller {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    padding-block: var(--space-2);
+
+    &::-webkit-scrollbar { display: none; }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 4px;
+    }
+  }
+
+  .rail__list {
+    display: flex;
+    gap: var(--space-6);
+  }
+
+  /* La largeur d'une carte se DEDUIT du nombre visible, elle n'est jamais
+     ecrite en pixels : quatre cartes plus trois gouttieres doivent faire
+     exactement la largeur du conteneur, sinon la quatrieme est coupee ou
+     flotte. Le 100% est celui de la liste, donc du scroller, donc du
+     conteneur : il n'y a rien a recalculer a la main. */
+  .rail__item {
+    scroll-snap-align: start;
+    flex: 0 0 calc((100% - var(--space-6)) / 2.15);
+
+    /* 2,15 sur telephone : deux cartes et un bout de la troisieme,
+       assez pour comprendre d'un coup d'oeil que la ligne continue. */
+    @media (width >= 700px) {
+      flex-basis: calc((100% - 2 * var(--space-6)) / 3.2);
+    }
+
+    @media (width >= 1000px) {
+      flex-basis: calc((100% - 3 * var(--space-6)) / 4);
+    }
+  }
+</style>
+
+<script>
+  /* Les fleches.
+   *
+   *  Elles demandent au navigateur de faire glisser le scroller d'une page,
+   *  c'est-a-dire de sa propre largeur : quatre cartes sur ordinateur,
+   *  autant que ce qui est visible. Aucune position n'est tenue en
+   *  JavaScript, c'est le scroller qui fait foi.
+   *
+   *  Consequence : si le nombre de cartes visibles change parce qu'on
+   *  redimensionne la fenetre, le pas suit tout seul, sans une ligne de plus.
+   */
+  document.querySelectorAll('.rail').forEach((rail) => {
+    const scroller = rail.querySelector('.rail__scroller');
+    const fleches = rail.querySelectorAll('.rail__arrow');
+    if (!scroller || !fleches.length) return;
+
+    const majEtat = () => {
+      /* 2 px de tolerance : les navigateurs arrondissent la position de
+         defilement, et sans cela une fleche restait active alors qu'on
+         etait deja au bout. */
+      const auDebut = scroller.scrollLeft <= 2;
+      const aLaFin = scroller.scrollLeft >= scroller.scrollWidth - scroller.clientWidth - 2;
+      fleches.forEach((f) => {
+        f.disabled = f.dataset.sens === '-1' ? auDebut : aLaFin;
+      });
+    };
+
+    fleches.forEach((f) => {
+      f.addEventListener('click', () => {
+        scroller.scrollBy({
+          left: Number(f.dataset.sens) * scroller.clientWidth,
+          behavior: 'smooth',
+        });
+      });
+    });
+
+    scroller.addEventListener('scroll', majEtat, { passive: true });
+    window.addEventListener('resize', majEtat);
+    majEtat();
+  });
+</script>

@@ -1,0 +1,69 @@
+---
+/* << Va bien avec >>, sur la fiche produit.
+ *
+ *  C'est le << Suggested partners >> d'Aesop, et c'est la seule section du
+ *  template dont le contenu est choisi PRODUIT PAR PRODUIT, dans
+ *  metadata.vaBienAvec de la fixture.
+ *
+ *  POURQUOI PAS UNE SUGGESTION AUTOMATIQUE PAR RAYON.
+ *  Un tirage dans le meme rayon proposerait six autres nettoyants a
+ *  quelqu'un qui vient d'en choisir un. Une suggestion utile repond a
+ *  << et avec ca ? >> : la creme apres le serum, la poudre apres le fond de
+ *  teint, le lait apres le gommage. Cela se decide a l'ecriture du
+ *  catalogue, pas par une regle.
+ *
+ *  La section disparait entierement quand la liste est vide : un produit
+ *  sans compagnon n'affiche pas un bloc vide. La fiche montre de toute
+ *  facon, plus bas, les autres produits de son rayon.
+ *
+ *  Elle utilise ProductCard et non une carte a elle : deux definitions de
+ *  carte finiraient par diverger, et c'est exactement ce que le composant
+ *  partage existe pour empecher.
+ */
+import ProductCard from '../components/ProductCard.astro';
+import { getContent } from '../lib/theme.js';
+
+const { produits = [] } = Astro.props;
+const content = await getContent();
+---
+
+{produits.length > 0 && (
+  <section class="section--l bg--surface">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <h2 class="compagnons__titre">{content.ui.vaBienAvec}</h2>
+      </div>
+
+      {/* Deux colonnes au maximum, et jamais quatre : la suggestion doit
+          rester une suggestion. Quatre cartes ici, juste avant les quatre du
+          rayon, feraient huit produits proposes sur une fiche qui en vend
+          un seul. */}
+      <ul class="compagnons">
+        {produits.slice(0, 2).map((produit) => (
+          <li data-reveal><ProductCard product={produit} /></li>
+        ))}
+      </ul>
+    </div>
+  </section>
+)}
+
+<style>
+  .compagnons__titre {
+    font-size: var(--h3);
+  }
+
+  .compagnons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-6);
+
+    /* La grille ne passe jamais a plus de deux colonnes, mais elle se
+       BRIDE en largeur sur grand ecran : deux cartes etalees sur 1280 px
+       donnent deux images geantes, et la suggestion pese alors plus lourd
+       que le produit qu'on est venu voir. */
+    @media (width >= 700px) {
+      max-width: 34rem;
+      gap: var(--space-8);
+    }
+  }
+</style>

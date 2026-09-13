@@ -1,0 +1,76 @@
+/* Accordeon, pattern Radix.
+ *
+ *  L'etat vit dans un attribut data-state, la hauteur dans une variable
+ *  --accordion-height mesuree en JS. On n'utilise JAMAIS <details> quand il
+ *  faut animer : sa hauteur n'est pas animable, l'ouverture saute.
+ */
+
+.accordion {
+  border-top: 1px solid var(--color-border);
+}
+
+.accordion__item {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.accordion__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  width: 100%;
+  padding-block: var(--space-6);
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: var(--text-m);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  transition: color var(--duration-fast) var(--ease-out);
+
+  /* Pas de couleur au survol : un leger retrait suffit, et la regle du
+     noir et blanc vaut aussi pour les lignes cliquables. */
+  &:hover {
+    color: color-mix(in oklab, var(--color-text) 68%, var(--color-bg));
+  }
+}
+
+.accordion__icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  position: relative;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 50% 0 auto 0;
+    height: 1px;
+    background: currentColor;
+    transition: transform var(--duration-base) var(--ease-out);
+  }
+
+  &::after {
+    transform: rotate(90deg);
+  }
+}
+
+.accordion__trigger[data-state='open'] .accordion__icon::after {
+  transform: rotate(0deg);
+}
+
+.accordion__panel {
+  overflow: hidden;
+  height: 0;
+  transition: height var(--duration-base) var(--ease-out);
+}
+
+.accordion__panel[data-state='open'] {
+  height: var(--accordion-height);
+}
+
+.accordion__content {
+  padding-bottom: var(--space-6);
+  color: var(--color-text-muted);
+  max-width: 68ch;
+}

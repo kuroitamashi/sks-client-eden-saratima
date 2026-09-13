@@ -1,0 +1,132 @@
+---
+import { getTheme, getContent } from '../lib/theme.js';
+
+const theme = await getTheme();
+const content = await getContent();
+const annee = new Date().getFullYear();
+const logo = theme.identity.logoText ?? theme.identity.name;
+---
+
+<footer class="footer">
+  <div class="container footer__inner">
+    <div class="footer__brand">
+      <span class="footer__logo">{logo}</span>
+      <p class="footer__tagline">{content.footer.texte}</p>
+
+      <ul class="footer__contact">
+        {theme.identity.whatsapp && (
+          <li>
+            <a class="link" href={`https://wa.me/${theme.identity.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener">
+              {theme.identity.whatsapp}
+            </a>
+          </li>
+        )}
+        {theme.identity.email && (
+          <li><a class="link" href={`mailto:${theme.identity.email}`}>{theme.identity.email}</a></li>
+        )}
+        {theme.identity.instagram && (
+          <li>
+            <a class="link" href={`https://instagram.com/${theme.identity.instagram}`} target="_blank" rel="noopener">
+              @{theme.identity.instagram}
+            </a>
+          </li>
+        )}
+      </ul>
+    </div>
+
+    <div class="footer__columns">
+      {content.footer.colonnes.map((col) => (
+        <div class="footer__column">
+          <h4 class="footer__column-title">{col.titre}</h4>
+          <ul class="footer__links">
+            {col.liens.map((lien) => (
+              <li><a href={lien.href} class="link">{lien.libelle}</a></li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="footer__bottom">
+      <p>© {annee} {theme.identity.name}</p>
+      <p>{content.footer.mentions}</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background: var(--color-surface);
+    padding-top: var(--section-space-l);
+    padding-bottom: var(--space-8);
+    margin-top: var(--section-space-m);
+  }
+
+  .footer__inner {
+    display: grid;
+    gap: var(--space-12);
+    grid-template-columns: 1fr;
+
+    @media (width >= 800px) {
+      grid-template-columns: 1.4fr 1fr;
+    }
+  }
+
+  .footer__logo {
+    font-family: var(--font-display);
+    font-weight: var(--font-display-weight);
+    font-size: var(--h3);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: var(--space-4);
+  }
+
+  .footer__tagline {
+    color: var(--color-text-muted);
+    max-width: 40ch;
+  }
+
+  .footer__contact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-6);
+    color: var(--color-text-muted);
+  }
+
+  .footer__columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-8);
+  }
+
+  .footer__column-title {
+    font-family: var(--font-body);
+    font-size: var(--text-m);
+    font-weight: var(--weight-medium);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-5);
+  }
+
+  .footer__links {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .footer__bottom {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-top: var(--space-16);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+  }
+</style>

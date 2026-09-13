@@ -1,0 +1,60 @@
+---
+/* Accordeon, pattern Radix : data-state + --accordion-height.
+ *  Volontairement pas de <details> : sa hauteur ne s'anime pas, l'ouverture
+ *  saute. Regle SKS, deja tranchee.
+ */
+const { items, name = 'acc' } = Astro.props;
+---
+
+<div class="accordion" data-accordion>
+  {items.map((item, i) => (
+    <div class="accordion__item">
+      <h3>
+        <button
+          class="accordion__trigger"
+          type="button"
+          data-state="closed"
+          aria-expanded="false"
+          aria-controls={`${name}-panel-${i}`}
+          id={`${name}-trigger-${i}`}
+        >
+          <span>{item.question}</span>
+          <span class="accordion__icon" aria-hidden="true"></span>
+        </button>
+      </h3>
+      <div
+        class="accordion__panel"
+        data-state="closed"
+        id={`${name}-panel-${i}`}
+        role="region"
+        aria-labelledby={`${name}-trigger-${i}`}
+      >
+        <div class="accordion__content">
+          <p>{item.reponse}</p>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+
+<script>
+  document.querySelectorAll('[data-accordion]').forEach((acc) => {
+    acc.addEventListener('click', (e) => {
+      const trigger = e.target.closest('.accordion__trigger');
+      if (!trigger) return;
+
+      const panel = document.getElementById(trigger.getAttribute('aria-controls'));
+      const open = trigger.dataset.state === 'open';
+
+      // La hauteur est mesuree a chaque ouverture : le texte peut changer de
+      // hauteur au redimensionnement, une valeur mise en cache mentirait.
+      if (!open) {
+        panel.style.setProperty('--accordion-height', panel.scrollHeight + 'px');
+      }
+
+      trigger.dataset.state = open ? 'closed' : 'open';
+      panel.dataset.state = open ? 'closed' : 'open';
+      trigger.setAttribute('aria-expanded', String(!open));
+    });
+  });
+</script>

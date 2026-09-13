@@ -1,0 +1,56 @@
+/* Sections, a la maniere d'ACSS.
+ *
+ *  Une section ne porte QUE du padding vertical. Jamais de height, jamais de
+ *  background sauf demande explicite par une classe bg--*. La largeur du
+ *  contenu est l'affaire du .container qu'elle enveloppe, pas la sienne.
+ */
+
+section {
+  padding-block: var(--section-space-m);
+}
+
+.section--s  { padding-block: var(--section-space-s); }
+.section--m  { padding-block: var(--section-space-m); }
+.section--l  { padding-block: var(--section-space-l); }
+.section--xl { padding-block: var(--section-space-xl); }
+
+.bg--surface {
+  background-color: var(--color-surface);
+}
+
+.bg--primary {
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+
+  & h1, & h2, & h3, & h4 { color: var(--color-on-primary); }
+  & .eyebrow { color: color-mix(in oklab, var(--color-on-primary) 70%, var(--color-primary)); }
+  & .lead { color: color-mix(in oklab, var(--color-on-primary) 78%, var(--color-primary)); }
+}
+
+.bg--accent-soft {
+  background-color: var(--color-accent-soft);
+}
+
+/* En-tete de section : surtitre, titre, chapo. Le meme montage partout,
+   pour que le rythme vertical du site soit regulier d'une section a l'autre. */
+.section-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-12);
+  max-width: 62ch;
+}
+
+.section-head--center {
+  margin-inline: auto;
+  text-align: center;
+  align-items: center;
+}
+
+/* Un filet fin, utilise avec parcimonie : la regle SKS est que les bordures
+   sont strategiques, pas decoratives. */
+.rule {
+  height: 1px;
+  background: var(--color-border);
+  border: 0;
+}

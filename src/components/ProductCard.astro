@@ -1,0 +1,179 @@
+---
+/* La carte d'un produit.
+ *
+ *  Elle sert aux quatre endroits qui listent des produits : les rangees de
+ *  l'accueil, la grille du catalogue, les suggestions de la fiche et le
+ *  << Va bien avec >>. Une seule definition, donc une carte qui ne peut pas
+ *  diverger d'un ecran a l'autre.
+ *
+ *  Elle vient de BookCard (Xam Xam) et en garde deux acquis :
+ *
+ *  LE BOUTON EST HORS DU LIEN, et ce n'est pas un detail de mise en page :
+ *  un <button> a l'interieur d'un <a> est du HTML invalide. Le navigateur
+ *  repare le document a sa facon, et le resultat differe de l'un a l'autre :
+ *  ici le clic ajoute au panier, la il ouvre la fiche, ailleurs les deux.
+ *  Le lien couvre donc l'image et le texte, le bouton est son voisin.
+ *
+ *  Le bouton ne connait pas le panier : il porte data-add, et le tiroir
+ *  ecoute tous les clics de la page. Une carte peut donc etre posee sur
+ *  n'importe quelle page sans que cette page ait a brancher quoi que ce soit.
+ *
+ *  DEUX CHOSES PROPRES A TAARU :
+ *
+ *   1. L'image est CARREE et non en 2/3. Un livre a un format, un flacon
+ *      n'en a pas : le carre est ce qui aligne une grille de textures, de
+ *      tubes et de pots sans qu'aucun ne paraisse ecrase. C'est le cadrage
+ *      de Fenty Beauty.
+ *
+ *   2. UN PRODUIT A TEINTES N'A PAS DE BOUTON D'AJOUT, il a un lien vers sa
+ *      fiche. Ajouter un fond de teint depuis une grille reviendrait a
+ *      choisir la teinte a la place de la cliente, ou a envoyer une commande
+ *      sans teinte au marchand, qui devrait rappeler. Le nuancier ne tient
+ *      pas sur une carte de 190 px : la fiche est le bon endroit.
+ */
+import ProductMedia from './ProductMedia.astro';
+import { formatMoney } from '../lib/format.js';
+import { getTheme, getContent } from '../lib/theme.js';
+
+const { product, priorite = false } = Astro.props;
+const theme = await getTheme();
+const content = await getContent();
+
+const meta = product.metadata ?? {};
+const teintes = meta.teintes ?? [];
+const badge = meta.badge ?? null;
+---
+
+<article class="carte">
+  <a href={`/produits/${product.slug}/`} class="carte__lien">
+    <div class="carte__media">
+      <ProductMedia product={product} ratio="carre" priorite={priorite} />
+      {badge && <span class="carte__badge">{badge}</span>}
+    </div>
+
+    <h3 class="carte__titre">{product.name}</h3>
+
+    {/* Une seule expression et non {a} {b} : deux expressions voisines
+        separees par une espace perdent cette espace a la compilation, et la
+        page affichait << 8teintes >>. Le gabarit litteral ne peut pas subir
+        ce sort. */}
+    <p class="carte__meta">
+      {teintes.length > 0
+        ? `${teintes.length} ${content.ui.teinte.toLowerCase()}s`
+        : product.format}
+    </p>
+
+    <p class="carte__prix">
+      <span>{formatMoney(product.price, theme.commerce)}</span>
+      {product.comparePrice && (
+        <s class="carte__compare">{formatMoney(product.comparePrice, theme.commerce)}</s>
+      )}
+    </p>
+  </a>
+
+  {teintes.length > 0 ? (
+    <a href={`/produits/${product.slug}/`} class="btn btn--outline btn--full carte__action">
+      {content.ui.choisirTeinte}
+    </a>
+  ) : (
+    /* aria-label complet : << Ajouter >> seul, repete vingt fois dans une
+       grille, ne dit pas a un lecteur d'ecran de quel produit il s'agit. */
+    <button
+      class="btn btn--primary btn--full carte__action"
+      data-add={product.id}
+      data-qty="1"
+      disabled={!product.inStock}
+      aria-label={`Ajouter ${product.name} au panier`}
+    >
+      {product.inStock ? content.ui.ajouterCourt : content.ui.rupture}
+    </button>
+  )}
+</article>
+
+<style>
+  /* La carte est une colonne : le lien prend la hauteur disponible et pousse
+     le bouton en bas. Sans cela, dans une rangee ou les noms font une ou
+     deux lignes, les boutons ne sont pas alignes entre eux. */
+  .carte {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .carte__lien {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    color: var(--color-text);
+    flex: 1;
+  }
+
+  .carte__media {
+    position: relative;
+    margin-bottom: var(--space-4);
+  }
+
+  .carte__lien:hover :global(.media img) {
+    transform: scale(1.04);
+  }
+
+  /* Le badge est en accent, la seule couleur de marque autorisee hors des
+     boutons. Angles vifs comme tout le reste du theme : il herite du
+     --radius-image, donc de la forme choisie par le marchand. */
+  .carte__badge {
+    position: absolute;
+    top: var(--space-3);
+    left: var(--space-3);
+    padding: var(--space-1) var(--space-3);
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    border-radius: var(--radius-button);
+    font-size: var(--text-m);
+    line-height: 1.4;
+  }
+
+  /* Deux lignes reservees, meme pour un nom court. Sans cette hauteur
+     minimale, la contenance et le prix se decalent d'une carte a l'autre
+     dans la meme rangee, et la grille donne l'impression d'etre cassee. */
+  .carte__titre {
+    font-family: var(--font-body);
+    font-size: var(--text-m);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0;
+    line-height: var(--leading-snug);
+    min-height: calc(2 * var(--text-m) * var(--leading-snug));
+  }
+
+  .carte__meta,
+  .carte__compare {
+    color: var(--color-text-muted);
+  }
+
+  /* flex-wrap indispensable : une carte fait 190 px, et un prix suivi de son
+     prix barre est plus large que ca. Sans le retour a la ligne, le prix
+     barre debordait sur la carte voisine. */
+  .carte__prix {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    margin-top: var(--space-2);
+    font-weight: var(--weight-medium);
+  }
+
+  .carte__compare {
+    font-weight: var(--weight-regular);
+  }
+
+  .carte__action {
+    margin-top: var(--space-4);
+    /* Sur une carte etroite, la gouttiere interne du bouton mange le libelle
+       avant que le libelle ne deborde. On la reduit plutot que de rapetisser
+       le texte : la regle SKS veut tout le texte en --text-m. */
+    padding-inline: var(--space-4);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .carte__lien:hover :global(.media img) { transform: none; }
+  }
+</style>

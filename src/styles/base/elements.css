@@ -1,0 +1,88 @@
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-m);
+  font-weight: var(--weight-regular);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-weight: var(--font-display-weight);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-text);
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--h1); }
+h2 { font-size: var(--h2); }
+h3 { font-size: var(--h3); line-height: var(--leading-snug); }
+h4 { font-size: var(--h4); line-height: var(--leading-snug); }
+
+p {
+  line-height: var(--leading-relaxed);
+  text-wrap: pretty;
+}
+
+a {
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+strong {
+  font-weight: var(--weight-semibold);
+}
+
+/* Le conteneur. Une seule regle porte la largeur du contenu de tout le
+   site : la changer ici, ou la regler dans le theme, change tout le site.
+   Aucune section ne definit sa propre largeur. */
+.container {
+  width: 100%;
+  max-width: var(--content-width);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.container--narrow {
+  max-width: min(var(--content-width), 780px);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Le surtitre : le petit label en capitales au-dessus d'un titre. Il reste
+   en --text-m, comme tout texte. C'est la graisse, l'espacement des lettres
+   et la couleur qui le distinguent, pas une taille plus petite. */
+.eyebrow {
+  font-family: var(--font-body);
+  font-size: var(--text-m);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.lead {
+  color: var(--color-text-muted);
+  max-width: 58ch;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}

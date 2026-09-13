@@ -1,0 +1,63 @@
+---
+import { getContent } from '../lib/theme.js';
+const content = await getContent();
+const reviews = content.reviews;
+---
+
+{reviews.liste.length > 0 && (
+  <section class="section--l">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">{reviews.surtitre}</p>
+        <h2>{reviews.titre}</h2>
+      </div>
+
+      <ul class="reviews">
+        {reviews.liste.map((avis) => (
+          <li class="review" data-reveal>
+            <p class="review__stars" aria-label={`Note de ${avis.note} sur 5`}>
+              <span aria-hidden="true">{'★'.repeat(avis.note)}{'☆'.repeat(5 - avis.note)}</span>
+            </p>
+            <blockquote class="review__text">{avis.texte}</blockquote>
+            <p class="review__author">{avis.nom}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+)}
+
+<style>
+  .reviews {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+
+    @media (width >= 800px) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .review {
+    background: var(--color-surface);
+    border-radius: var(--radius-card);
+    padding: var(--space-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .review__stars {
+    color: var(--color-accent);
+    letter-spacing: 0.2em;
+  }
+
+  .review__text {
+    flex: 1;
+    line-height: var(--leading-relaxed);
+  }
+
+  .review__author {
+    color: var(--color-text-muted);
+  }
+</style>

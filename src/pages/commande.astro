@@ -1,0 +1,1372 @@
+---
+/* La page de commande, sur le modele d'un tunnel Shopify.
+ *
+ *  Deux colonnes : le formulaire a gauche, le recapitulatif a droite sur un
+ *  aplat sombre. C'est la disposition de reference que suivent Shopify et
+ *  les boutiques qui tournent dessus : on remplit d'un cote, on verifie ce
+ *  qu'on paie de l'autre, sans jamais perdre le total de vue.
+ *
+ *  Trois sections numerotees a gauche, dans l'ordre ou les questions se
+ *  posent : qui es-tu, ou on livre, comment tu paies. Puis le bouton.
+ *
+ *  ---------------------------------------------------------------------
+ *  CETTE PAGE N'ENCAISSE RIEN, ET C'EST A DIRE SANS DETOUR.
+ *
+ *  PayDunya n'est pas branche. << Paiement mobile >> est donc un mode
+ *  DECLARE, pas une transaction : il part avec la commande et le marchand
+ *  confirme le numero sur WhatsApp. C'est deja comme cela que les choses se
+ *  passent a Dakar ; on rend le parcours propre au lieu de faire semblant
+ *  d'avoir une passerelle de paiement.
+ *
+ *  Le bouton dit donc << Payer >> comme sur une vraie boutique, mais rien
+ *  n'est preleve, et le texte sous le titre << Paiement >> le dit.
+ *  ---------------------------------------------------------------------
+ *
+ *  CETTE PAGE N'ENVOIE RIEN EN DEMONSTRATION.
+ *
+ *  Le meme code sert la demo (taaru.demosenkheweul.com) et la boutique d'un
+ *  vrai marchand. Sur la demo, dix marchands peuvent essayer le formulaire
+ *  le meme apres-midi : si chaque essai partait quelque part, quelqu'un
+ *  recevrait dix fausses commandes. theme.commerce.demoMode decide.
+ *
+ *  Le panier, le total, la zone et la remise sont calcules DANS LE
+ *  NAVIGATEUR : un site statique n'a pas de serveur. Le catalogue et les
+ *  zones sont deposes dans la page en JSON pour qu'aucune requete reseau ne
+ *  soit necessaire, ce qui compte en 3G.
+ */
+import Default from '../layouts/Default.astro';
+import { getTheme, getContent } from '../lib/theme.js';
+import { listProducts } from '../lib/products.js';
+import { formatMoney } from '../lib/format.js';
+
+const theme = await getTheme();
+const content = await getContent();
+const produits = await listProducts();
+const page = content.commande;
+
+const catalogue = produits.map((p) => ({
+  id: p.id,
+  name: p.name,
+  price: p.price,
+  image: p.images?.[0] ?? null,
+  format: p.format ?? null,
+  /* L'identifiant du PRIX chez SureCart, et non celui du produit : c'est ce
+     que reference une ligne de commande. Il n'existe que si le catalogue
+     vient de l'API (DATA_SOURCE=surecart) ; une fixture n'en a pas, et la
+     commande retombe alors sur WhatsApp. */
+  priceId: p.priceId ?? null,
+}));
+
+const demo = theme.commerce.demoMode !== false;
+const numeroMobile = theme.commerce.mobileMoneyNumber ?? null;
+
+/* Le branchement sur SKS n'existe que si les deux valeurs sont la ET que la
+   demonstration est eteinte. Un des trois manque, la commande part sur
+   WhatsApp comme avant : c'est le comportement de repli, jamais une erreur. */
+const sks = (!demo && theme.commerce.sksApiUrl && theme.commerce.slug)
+  ? { api: String(theme.commerce.sksApiUrl).replace(/\/+$/, ''), slug: theme.commerce.slug }
+  : null;
+
+const config = {
+  currency: theme.commerce.currency,
+  locale: theme.commerce.locale,
+  demoMode: demo,
+  whatsapp: theme.identity.whatsapp,
+  boutique: theme.identity.name,
+  sks,
+  textes: page,
+  ui: content.ui,
+};
+
+/* Les trois icones du bloc d'arguments. Elles sont dessinees ici, en trait,
+   et non chargees : trois requetes reseau pour trois pictogrammes de 24 px
+   coutent plus cher que le trait lui-meme. */
+const ICONES = {
+  livraison: 'M3 7h11v8H3zM14 10h4l3 3v2h-7zM7.5 17.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM17.5 17.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z',
+  paiement: 'M3 7h18v10H3zM3 11h18M7 15h3',
+  retour: 'M3 12a9 9 0 1 0 3-6.7M3 4v5h5',
+};
+---
+
+<Default title={page.titre} description={page.contactTitre} piedDePage={false}>
+  {/* Les deux etats de bord, dans un conteneur ordinaire : ils ne sont pas
+      un tunnel, ils n'ont donc pas a en prendre la mise en page. */}
+  <div class="container">
+    {/* Panier vide : ni formulaire ni recapitulatif, un message et un chemin
+        de retour. Le bloc est masque par defaut et le script decide au
+        chargement : le HTML statique ne peut pas savoir ce qu'il y a dans le
+        localStorage de la visiteuse. */}
+    <div class="etat vide" id="commande-vide" hidden>
+      <h1 class="etat__titre">{page.titre}</h1>
+      <p>{page.erreurs.vide}</p>
+      <a href="/produits/" class="btn btn--primary">{content.ui.continuerAchats}</a>
+    </div>
+
+    {/* L'ecran de confirmation REMPLACE le tunnel, il ne s'ouvre pas
+        au-dessus : une fois la commande passee, il n'y a plus rien a
+        remplir, et laisser le formulaire visible invite a l'envoyer deux
+        fois. */}
+    <div class="etat confirmation" id="confirmation" hidden>
+      <h2 class="etat__titre">{page.confirmation.titre}</h2>
+      <p>{demo ? page.confirmation.texteDemo : page.confirmation.texteReel}</p>
+      <a href="/produits/" class="btn btn--primary">{page.confirmation.retour}</a>
+    </div>
+  </div>
+
+  {/* LE TUNNEL EST HORS DU CONTENEUR, et c'est ce qui permet au
+      recapitulatif de toucher le bord droit de l'ecran. Le conteneur centre
+      son contenu et le bride a --content-width : un enfant ne peut pas en
+      sortir. La colonne gauche recalcule donc elle-meme la gouttiere du
+      conteneur, pour que le formulaire reste aligne avec le reste du site. */}
+  <section class="tunnel" id="commande-bloc" hidden>
+    <div class="tunnel__gauche">
+      <div class="tunnel__contenu">
+      <nav class="crumbs" aria-label="Fil d'Ariane">
+        <a href="/" class="link">Accueil</a>
+        <span aria-hidden="true">/</span>
+        <a href="/produits/" class="link">{content.cataloguePage.titre}</a>
+        <span aria-hidden="true">/</span>
+        <span>{page.surtitre}</span>
+      </nav>
+
+        <form class="tunnel__form" id="commande-form" novalidate>
+          <div>
+            <h1 class="tunnel__titre">{page.titre}</h1>
+            <p class="form__legende"><span class="champ__requis">*</span> Champs obligatoires</p>
+          </div>
+
+          <section class="bloc">
+            <h2 class="bloc__titre"><span class="bloc__num">1</span>{page.contactTitre}</h2>
+
+            <div class="champ">
+              <label for="nom">{page.champs.nom} <span class="champ__requis" aria-label="obligatoire">*</span></label>
+              <input type="text" id="nom" name="nom" autocomplete="name" required />
+              <p class="champ__erreur" id="erreur-nom" hidden>{page.erreurs.nom}</p>
+            </div>
+
+            <div class="champ">
+              <label for="telephone">{page.champs.telephone} <span class="champ__requis" aria-label="obligatoire">*</span></label>
+              {/* inputmode="tel" et non type="number" : un numero n'est pas
+                  une quantite, et type="number" affiche des fleches
+                  d'increment et mange les zeros de tete. */}
+              {/* maxlength 12 : neuf chiffres et trois espaces. C'est une
+                  seconde barriere, au cas ou le script ne serait pas encore
+                  charge : un champ ne doit jamais accepter plus que ce que
+                  la validation acceptera. */}
+              <input
+                type="tel"
+                inputmode="numeric"
+                id="telephone"
+                name="telephone"
+                autocomplete="tel"
+                maxlength="12"
+                placeholder={page.champs.telephonePlaceholder}
+                required
+              />
+              <p class="champ__erreur" id="erreur-telephone" hidden>{page.erreurs.telephone}</p>
+            </div>
+
+            {/* L'e-mail est FACULTATIF, contrairement a Shopify qui en fait
+                le pivot du compte client. Ici, la commande part sur
+                WhatsApp et la confirmation se fait par telephone : exiger
+                une adresse ferait perdre les clientes qui n'en utilisent
+                pas, et elles sont nombreuses. */}
+            <div class="champ">
+              <label for="email">{page.champs.email} <span class="champ__facultatif">(optionnel)</span></label>
+              <input
+                type="email"
+                inputmode="email"
+                id="email"
+                name="email"
+                autocomplete="email"
+                placeholder={page.champs.emailPlaceholder}
+              />
+              <p class="champ__erreur" id="erreur-email" hidden>{page.erreurs.email}</p>
+            </div>
+          </section>
+
+          <section class="bloc">
+            <h2 class="bloc__titre"><span class="bloc__num">2</span>{page.livraisonTitre}</h2>
+
+            {/* La zone commande le prix de la livraison, donc le total. Un
+                <select> et non des boutons radio : cinq zones aujourd'hui,
+                mais un marchand de Thies en aura quinze, et quinze radios
+                remplissent un ecran de telephone a elles seules. */}
+            <div class="champ">
+              <label for="zone">{page.champs.zone} <span class="champ__requis" aria-label="obligatoire">*</span></label>
+              {/* Le select est enveloppe pour que le chevron soit un
+                  pseudo-element, donc colorable avec une variable du theme.
+                  En image de fond, sa couleur serait ecrite en dur dans
+                  l'URL et ne suivrait pas la palette du marchand. */}
+              <div class="select">
+              <select id="zone" name="zone" required>
+                <option value="">{page.champs.zoneVide}</option>
+                {page.zones.map((z) => (
+                  <option value={z.cle} data-tarif={z.tarif ?? ''}>
+                    {z.tarif === null
+                      ? `${z.libelle} (${page.totaux.livraisonAConvenir})`
+                      : `${z.libelle} — ${formatMoney(z.tarif, theme.commerce)}`}
+                  </option>
+                ))}
+              </select>
+              </div>
+              <p class="champ__aide" id="zone-delai"></p>
+              <p class="champ__erreur" id="erreur-zone" hidden>{page.erreurs.zone}</p>
+            </div>
+
+            <div class="champ">
+              <label for="adresse">{page.champs.adresse} <span class="champ__requis" aria-label="obligatoire">*</span></label>
+              <input
+                type="text"
+                id="adresse"
+                name="adresse"
+                autocomplete="street-address"
+                placeholder={page.champs.adressePlaceholder}
+                required
+              />
+              <p class="champ__erreur" id="erreur-adresse" hidden>{page.erreurs.adresse}</p>
+            </div>
+
+            <div class="champ">
+              <label for="note">{page.champs.note} <span class="champ__facultatif">(optionnel)</span></label>
+              <textarea id="note" name="note" rows="2" placeholder={page.champs.notePlaceholder}></textarea>
+            </div>
+          </section>
+
+          <section class="bloc">
+            <h2 class="bloc__titre"><span class="bloc__num">3</span>{page.paiementTitre}</h2>
+            <p class="bloc__note">{page.paiementTexte}</p>
+
+            {/* Les modes de paiement, facon Shopify : la description ne
+                s'affiche QUE sous l'option choisie. Trois lignes d'aide
+                empilees en permanence font un mur de texte, et on ne lit
+                plus celle qui compte. */}
+            <div class="modes">
+              {page.modes.map((mode, i) => (
+                <div class="mode" data-mode={mode.cle}>
+                  <label class="mode__tete">
+                    <input type="radio" name="paiement" value={mode.cle} checked={i === 0} />
+                    <span class="mode__libelle">{mode.libelle}</span>
+                  </label>
+
+                  <div class="mode__corps">
+                    <p class="mode__aide">
+                      {mode.cle === 'mobile' && numeroMobile
+                        ? `${mode.aideAvecNumero} ${numeroMobile}.`
+                        : mode.aide}
+                    </p>
+
+                    {mode.operateurs?.length > 0 && (
+                      /* Les pastilles des operateurs. Tant qu'aucun `logo`
+                         n'est renseigne, la pastille porte le NOM sur un
+                         filet de la couleur de l'operateur. Le jour ou on a
+                         les vrais logos, on renseigne le chemin et rien
+                         d'autre ne bouge. */
+                      <ul class="operateurs">
+                        {mode.operateurs.map((op) => (
+                          <li class="operateur" style={`--marque: ${op.couleur}`}>
+                            {op.logo
+                              ? <img src={op.logo} alt={op.nom} height="18" />
+                              : <span>{op.nom}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <button type="submit" class="btn btn--primary btn--full payer">
+            <span id="payer-libelle">{page.payer}</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ------------------------------------------------------------ -->
+    <!-- Colonne droite : le recapitulatif, pleine hauteur, a fond    -->
+    <!-- perdu jusqu'au bord droit de l'ecran.                         -->
+    <!-- ------------------------------------------------------------ -->
+    <aside class="recap" aria-label={page.recapTitre}>
+      <div class="recap__interieur">
+            <ul class="recap__lignes" id="recap-lignes"></ul>
+
+            {/* Code promo */}
+            <div class="promo-bloc">
+              <form class="promo" id="promo-form">
+                <input
+                  type="text"
+                  id="promo"
+                  name="promo"
+                  placeholder={page.reduction.placeholder}
+                  autocomplete="off"
+                  aria-label={page.reduction.placeholder}
+                />
+                <button type="submit" class="promo__btn">{page.reduction.bouton}</button>
+              </form>
+              <p class="promo__retour" id="promo-retour" hidden></p>
+            </div>
+
+            <dl class="totaux">
+              <div class="totaux__ligne">
+                <dt>{page.totaux.sousTotal}</dt>
+                <dd id="t-soustotal"></dd>
+              </div>
+              <div class="totaux__ligne" id="ligne-reduction" hidden>
+                <dt>{page.totaux.reduction}</dt>
+                <dd id="t-reduction"></dd>
+              </div>
+              <div class="totaux__ligne">
+                <dt>{page.totaux.livraison}</dt>
+                <dd id="t-livraison">{page.totaux.livraisonAChoisir}</dd>
+              </div>
+              <div class="totaux__ligne totaux__ligne--fort">
+                <dt>{page.totaux.total}</dt>
+                <dd id="t-total"></dd>
+              </div>
+            </dl>
+
+            {page.avantages?.length > 0 && (
+              <ul class="avantages">
+                {page.avantages.map((a) => (
+                  <li class="avantage">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d={ICONES[a.icone] ?? ICONES.livraison} />
+                    </svg>
+                    <span class="avantage__texte">
+                      <span class="avantage__titre">{a.titre}</span>
+                      <span>{a.texte}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+      </div>
+    </aside>
+  </section>
+</Default>
+
+<script type="application/json" id="commande-catalogue" set:html={JSON.stringify(catalogue)}></script>
+<script type="application/json" id="commande-config" set:html={JSON.stringify(config)}></script>
+
+<style>
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-8);
+  }
+
+  .etat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-6);
+    max-width: 46rem;
+    margin-block: var(--section-space-m);
+  }
+
+  .confirmation {
+    padding: var(--space-10);
+    background: var(--color-surface);
+  }
+
+  .etat__titre,
+  .tunnel__titre {
+    font-size: var(--h2);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-tight);
+  }
+
+  /* Piege SKS deja rencontre : sans ces selecteurs, le display: flex ou grid
+     pose sur l'element l'emporte sur l'attribut hidden, et le bloc cache
+     reste visible. */
+  .etat[hidden],
+  .tunnel[hidden] {
+    display: none;
+  }
+
+  /* Sur telephone : une seule colonne, formulaire d'abord, recapitulatif
+     EN DERNIER. On remplit, puis on verifie ce qu'on paie juste avant
+     d'appuyer sur le bouton, qui est lui aussi en bas. */
+  .tunnel {
+    display: flex;
+    flex-direction: column;
+    /* Le selecteur d'element `section` du CSS global pose une gouttiere
+       verticale sur TOUTE section. Ici elle ouvrait 80 px de blanc au-dessus
+       du panneau sombre, qui ne touchait donc plus le haut de l'ecran. La
+       gouttiere est portee par la colonne gauche, pas par le tunnel. */
+    padding-block: 0;
+  }
+
+  /* Sur ordinateur : deux moities EGALES de l'ECRAN, et non du conteneur.
+     Le recapitulatif n'est pas une colonne secondaire, c'est ce que la
+     cliente vient verifier : il pese autant que le formulaire et il va
+     jusqu'au bord droit, comme sur les tunnels de reference. */
+  @media (width >= 900px) {
+    .tunnel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: stretch;
+    }
+  }
+
+  /* LES DEUX COLONNES SE SERRENT CONTRE LA LIGNE DE PARTAGE.
+   *
+   *  Les aplats vont au bord de l'ecran, le CONTENU non. C'est ce qui fait
+   *  la difference entre un tunnel et un tableur : un champ de formulaire
+   *  large de 800 px se lit mal, et un oeil qui doit traverser tout l'ecran
+   *  pour aller du libelle au champ suivant se fatigue.
+   *
+   *  Le formulaire est donc cale a DROITE de sa moitie, le recapitulatif a
+   *  GAUCHE de la sienne, tous deux a une meme distance de la ligne de
+   *  partage. Les deux blocs forment ainsi une colonne de lecture unique au
+   *  milieu de l'ecran, quelle que soit la taille de la fenetre. C'est la
+   *  mise en page d'Aubade, et de tous les tunnels Shopify.
+   *
+   *  Consequence voulue : sur un ecran tres large, ce ne sont pas les champs
+   *  qui grandissent, c'est le blanc autour. */
+  .tunnel__gauche {
+    padding-inline: var(--gutter);
+    padding-block: var(--section-space-m);
+
+    @media (width >= 900px) {
+      padding-right: var(--space-12);
+    }
+  }
+
+  .tunnel__contenu {
+    @media (width >= 900px) {
+      max-width: 34rem;
+      margin-left: auto;
+    }
+  }
+
+  .tunnel__form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  /* Une section = une question. Le filet du haut les separe sans qu'on ait
+     besoin d'un fond : c'est la regle SKS des bordures strategiques. */
+  .bloc {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    padding-top: var(--space-8);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .bloc__titre {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    font-size: var(--h3);
+  }
+
+  /* Le numero de l'etape. Carre et non rond : le theme est en angles vifs,
+     et un rond ici serait le seul de la page. */
+  .bloc__num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    font-family: var(--font-body);
+    font-size: var(--text-m);
+    line-height: 1;
+  }
+
+  .bloc__note {
+    color: var(--color-text-muted);
+    margin-top: calc(var(--space-4) * -1);
+  }
+
+  .champ {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .form__legende {
+    font-size: var(--text-s);
+    color: var(--color-text-muted);
+    margin-top: var(--space-2);
+  }
+
+  .champ__requis {
+    color: var(--color-accent);
+    font-weight: var(--weight-bold, 700);
+  }
+
+  .champ__facultatif {
+    font-size: var(--text-s);
+    font-weight: normal;
+    color: var(--color-text-muted);
+    margin-left: var(--space-2);
+  }
+
+  .champ label,
+  .mode__libelle {
+    font-weight: var(--weight-medium);
+  }
+
+  /* Les champs heritent du rayon du theme (--radius-input) : sur Taaru la
+     forme est << net >>, donc des angles vifs. Rien n'est ecrit en dur. */
+  .champ input,
+  .champ select,
+  .champ textarea {
+    width: 100%;
+    padding: var(--space-4);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-input);
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--text-m);
+
+    &:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
+    }
+  }
+
+  .champ textarea {
+    resize: vertical;
+  }
+
+  /* Le chevron du menu deroulant.
+   *
+   *  Le chevron dessine par le systeme se colle au bord droit du champ et
+   *  ignore le padding : sur Windows, il touchait presque la bordure. On
+   *  coupe donc l'habillage natif (appearance: none) et on le dessine
+   *  nous-memes, a une gouttiere du bord.
+   *
+   *  C'est un MASQUE et non une image de fond, et c'est ce qui compte : la
+   *  forme vient du masque, la COULEUR vient de background-color, donc de
+   *  --color-text. Une image de fond aurait la couleur ecrite en dur dans
+   *  son URL, et un marchand qui passe sa boutique en fond sombre se
+   *  retrouverait avec un chevron noir invisible. */
+  .select {
+    position: relative;
+  }
+
+  .champ select {
+    appearance: none;
+    padding-right: var(--space-12);
+    cursor: pointer;
+  }
+
+  .select::after {
+    content: '';
+    position: absolute;
+    right: var(--space-5);
+    top: 50%;
+    width: 12px;
+    height: 8px;
+    transform: translateY(-50%);
+    pointer-events: none;
+    background-color: var(--color-text);
+    -webkit-mask-image: var(--chevron);
+    mask-image: var(--chevron);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5'/%3E%3C/svg%3E");
+  }
+
+  .champ__aide {
+    color: var(--color-text-muted);
+  }
+
+  .champ__aide:empty {
+    display: none;
+  }
+
+  /* L'erreur est en accent et non en rouge : le rouge n'est pas un des six
+     roles du contrat, et l'ajouter en dur ici serait une couleur qui
+     echappe au theme. */
+  .champ__erreur {
+    color: var(--color-accent);
+  }
+
+  .champ__erreur[hidden] {
+    display: none;
+  }
+
+  /* Les modes de paiement */
+  .modes {
+    border: 1px solid var(--color-border-strong);
+  }
+
+  .mode + .mode {
+    border-top: 1px solid var(--color-border-strong);
+  }
+
+  .mode__tete {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    cursor: pointer;
+  }
+
+  .mode input {
+    accent-color: var(--color-primary);
+  }
+
+  /* Le corps ne s'affiche que sous l'option choisie. :has evite d'avoir a
+     poser une classe en JavaScript, et se comporte correctement meme si le
+     script n'a pas encore tourne. */
+  .mode__corps {
+    display: none;
+    padding: 0 var(--space-5) var(--space-5) calc(var(--space-5) + 26px);
+  }
+
+  .mode:has(input:checked) {
+    background: var(--color-surface);
+  }
+
+  .mode:has(input:checked) .mode__corps {
+    display: block;
+  }
+
+  .mode__aide {
+    color: var(--color-text-muted);
+  }
+
+  .operateurs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+  }
+
+  /* La pastille d'un operateur : fond de page, et un filet de SA couleur.
+     Un aplat plein de la couleur de marque ferait quatre taches vives dans
+     une page qui n'en a aucune, et deux d'entre elles rendraient le nom
+     illisible. */
+  .operateur {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-bg);
+    border: 1px solid var(--marque);
+    line-height: 1.2;
+  }
+
+  /* La colonne de droite, sur aplat sombre comme les tunnels Shopify.
+     Elle touche le haut, le bas et le bord droit de l'ecran. */
+  .recap {
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+  }
+
+  /* La regle de base vient AVANT la version grand ecran, et l'ordre compte.
+     Ecrite apres, sa forme raccourcie `padding` ecrasait le padding-block de
+     la regle grand ecran : le recapitulatif commencait 48 px plus haut que
+     le formulaire, et les deux colonnes ne demarraient pas a la meme
+     hauteur. Une regle raccourcie repose TOUTES les valeurs, y compris
+     celles qu'on ne nomme pas. */
+  .recap__interieur {
+    padding: var(--section-space-m) var(--gutter);
+  }
+
+  @media (width >= 900px) {
+    /* L'aplat sombre occupe TOUTE la hauteur de la rangee, donc toute la
+       hauteur du tunnel : il touche le haut et le bas quoi qu'il arrive.
+       dvh et non vh pour le minimum : sur les navigateurs a barre d'adresse
+       retractable, 100vh vaut la hauteur BARRE COMPRISE, et le bas du
+       panneau passe alors sous la barre. */
+    .recap {
+      min-height: calc(100dvh - var(--header-height));
+    }
+
+    /* C'EST LE CONTENU QUI EST COLLANT, PAS LE PANNEAU.
+       Un element etire par align-items: stretch remplit toute sa rangee : il
+       n'a plus un pixel pour se deplacer, et position: sticky ne fait alors
+       rien du tout. Constate a l'ecran, le recapitulatif defilait avec la
+       page. En rendant collant le bloc INTERIEUR, le fond reste plein
+       hauteur et le contenu, lui, suit la lecture. */
+    .recap__interieur {
+      position: sticky;
+      top: var(--header-height);
+      max-width: 30rem;
+      margin-right: auto;
+      padding-left: var(--space-12);
+      padding-right: var(--space-6);
+    }
+  }
+
+  .recap__lignes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    padding-bottom: 0;
+  }
+
+  /* Le bloc de code de reduction, parfaitement centre entre ses deux filets */
+  .promo-bloc {
+    margin-top: var(--space-5);
+    padding-block: var(--space-5);
+    border-top: 1px solid color-mix(in oklab, var(--color-on-primary) 22%, transparent);
+    border-bottom: 1px solid color-mix(in oklab, var(--color-on-primary) 22%, transparent);
+  }
+
+  .promo {
+    display: flex;
+    gap: var(--space-3);
+  }
+
+  .promo input {
+    flex: 1;
+    min-width: 0;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid color-mix(in oklab, var(--color-on-primary) 35%, transparent);
+    border-radius: var(--radius-input);
+    background: transparent;
+    color: var(--color-on-primary);
+    font-family: var(--font-body);
+    font-size: var(--text-m);
+
+    &::placeholder {
+      color: color-mix(in oklab, var(--color-on-primary) 55%, transparent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-on-primary);
+      outline-offset: 2px;
+    }
+  }
+
+  .promo__btn {
+    padding: var(--space-3) var(--space-5);
+    border: 1px solid transparent;
+    border-radius: var(--radius-button);
+    background: color-mix(in oklab, var(--color-on-primary) 16%, transparent);
+    color: var(--color-on-primary);
+    font-family: var(--font-body);
+    font-size: var(--text-m);
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--ease-out);
+
+    &:hover {
+      background: color-mix(in oklab, var(--color-on-primary) 28%, transparent);
+    }
+  }
+
+  .promo__retour {
+    margin-top: var(--space-3);
+  }
+
+  .promo__retour[hidden] {
+    display: none;
+  }
+
+  .totaux {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding-top: var(--space-5);
+  }
+
+  .totaux__ligne {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-4);
+  }
+
+  .totaux__ligne[hidden] {
+    display: none;
+  }
+
+  .totaux__ligne dt {
+    color: color-mix(in oklab, var(--color-on-primary) 70%, transparent);
+  }
+
+  /* Le total est le seul chiffre autorise a quitter --text-m dans cette
+     colonne : c'est le nombre qu'on vient verifier. */
+  .totaux__ligne--fort {
+    margin-top: var(--space-3);
+    padding-top: var(--space-4);
+    border-top: 1px solid color-mix(in oklab, var(--color-on-primary) 22%, transparent);
+  }
+
+  .totaux__ligne--fort dt {
+    color: var(--color-on-primary);
+    font-weight: var(--weight-medium);
+  }
+
+  .totaux__ligne--fort dd {
+    font-family: var(--font-display);
+    font-size: var(--h3);
+    line-height: 1;
+  }
+
+  .avantages {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    margin-top: var(--space-8);
+    padding-top: var(--space-6);
+    border-top: 1px solid color-mix(in oklab, var(--color-on-primary) 22%, transparent);
+  }
+
+  .avantage {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+
+  .avantage svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    opacity: 0.8;
+  }
+
+  .avantage__texte {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    color: color-mix(in oklab, var(--color-on-primary) 72%, transparent);
+  }
+
+  .avantage__titre {
+    color: var(--color-on-primary);
+    font-weight: var(--weight-medium);
+  }
+
+</style>
+
+<style is:global>
+  .recap-ligne {
+    display: grid;
+    grid-template-columns: 52px 1fr auto;
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  /* La vignette du recapitulatif, avec sa pastille de quantite en coin,
+     comme sur Shopify : la quantite se lit sans occuper une ligne. */
+  .recap-ligne__media {
+    position: relative;
+    width: 52px;
+    aspect-ratio: 1;
+    background: color-mix(in oklab, var(--color-on-primary) 14%, transparent);
+    overflow: visible;
+  }
+
+  .recap-ligne__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .recap-ligne__qty {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    min-width: 20px;
+    height: 20px;
+    padding-inline: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in oklab, var(--color-on-primary) 85%, transparent);
+    color: var(--color-primary);
+    border-radius: 999px;
+    line-height: 1;
+  }
+
+  .recap-ligne__nom {
+    line-height: var(--leading-snug);
+  }
+
+  .recap-ligne__teinte {
+    display: block;
+    color: color-mix(in oklab, var(--color-on-primary) 65%, transparent);
+  }
+
+  .recap-ligne__prix {
+    white-space: nowrap;
+  }
+</style>
+
+<script>
+  const bloc = document.getElementById('commande-bloc');
+  const vide = document.getElementById('commande-vide');
+  const confirmation = document.getElementById('confirmation');
+  const form = document.getElementById('commande-form');
+  const lignesEl = document.getElementById('recap-lignes');
+  const zoneEl = document.getElementById('zone');
+  const delaiEl = document.getElementById('zone-delai');
+  const promoForm = document.getElementById('promo-form');
+  const promoInput = document.getElementById('promo');
+  const promoRetour = document.getElementById('promo-retour');
+
+  const catalogue = JSON.parse(document.getElementById('commande-catalogue').textContent);
+  const config = JSON.parse(document.getElementById('commande-config').textContent);
+  const T = config.textes;
+
+  const money = new Intl.NumberFormat(config.locale, {
+    style: 'currency',
+    currency: config.currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+
+  const read = () => {
+    try { return JSON.parse(localStorage.getItem('sks_cart') || '[]'); } catch { return []; }
+  };
+
+  /* Meme raison que dans le tiroir : le recapitulatif est ecrit en
+     innerHTML avec des donnees du marchand venues de SureCart. */
+  const echapper = (valeur) =>
+    String(valeur ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+
+  /* Les modes de paiement affiches viennent en direct du reglage du marchand
+     (Reglages > Paiements sur le dashboard) : la vitrine est statique, ce
+     reglage ne l'est pas. LE REPLI EST LA REGLE, comme pour l'envoi de la
+     commande plus bas : demo, reseau coupe, boutique introuvable, ou reponse
+     vide, la liste du theme.config.js reste affichee telle quelle. */
+  const conteneurModes = document.querySelector('.modes');
+  if (config.sks && conteneurModes) {
+    fetch(`${config.sks.api}/api/public/boutiques/${config.sks.slug}/paiements`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (!json?.ok || !Array.isArray(json.modes) || json.modes.length === 0) return;
+        T.modes = json.modes.map((m) => ({ cle: m.id, libelle: m.titre }));
+        conteneurModes.innerHTML = json.modes.map((m, i) => `
+          <div class="mode" data-mode="${echapper(m.id)}">
+            <label class="mode__tete">
+              <input type="radio" name="paiement" value="${echapper(m.id)}" ${i === 0 ? 'checked' : ''} />
+              <span class="mode__libelle">${echapper(m.titre)}</span>
+            </label>
+            <div class="mode__corps">
+              <p class="mode__aide">${echapper(m.description)}</p>
+            </div>
+          </div>
+        `).join('');
+      })
+      .catch(() => {}); // reseau coupe : la liste statique du theme reste affichee
+  }
+
+  /* Les zones de livraison viennent en direct du reglage du marchand
+     (Reglages > Livraison sur le dashboard SKS) : la vitrine est statique, ce
+     reglage ne l'est pas. LE REPLI EST LA REGLE : si demo, reseau coupe ou
+     reponse vide, la grille de theme.config.js reste affichee telle quelle. */
+  if (config.sks && zoneEl) {
+    fetch(`${config.sks.api}/api/public/boutiques/${config.sks.slug}/livraison`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (!json?.ok || !Array.isArray(json.zones) || json.zones.length === 0) return;
+        T.zones = json.zones;
+        const valInitiale = zoneEl.value;
+        const opts = [`<option value="">${T.champs.zoneVide}</option>`];
+        for (const z of json.zones) {
+          const prix = z.tarif !== null ? ` (${money.format(z.tarif)})` : ' (prix à convenir)';
+          opts.push(`<option value="${echapper(z.cle)}">${echapper(z.libelle)}${prix}</option>`);
+        }
+        zoneEl.innerHTML = opts.join('');
+        if (valInitiale && json.zones.some((z) => z.cle === valInitiale)) {
+          zoneEl.value = valInitiale;
+        }
+        afficher();
+      })
+      .catch(() => {});
+  }
+
+  // Le code de reduction actuellement applique, ou null.
+  let promo = null;
+
+  /* Les lignes du panier, jointes au catalogue. Une ligne dont le produit
+     n'existe plus est ecartee ici, exactement comme dans le tiroir : sinon
+     la page de commande additionnerait un article que personne ne peut
+     livrer. Le nettoyage du stockage reste la responsabilite du tiroir, qui
+     est present sur toutes les pages. */
+  function lignesDuPanier() {
+    return read()
+      .map((item) => ({ ...item, produit: catalogue.find((p) => p.id === item.id) }))
+      .filter((l) => l.produit);
+  }
+
+  function zoneChoisie() {
+    const option = zoneEl.selectedOptions[0];
+    if (!option || !option.value) return null;
+    return T.zones.find((z) => z.cle === option.value) ?? null;
+  }
+
+  /* Le calcul du total, en un seul endroit.
+   *
+   *  Ordre voulu : la remise en pourcentage s'applique au SOUS-TOTAL, pas au
+   *  total livraison comprise. Sinon << 10 % >> rembourserait une partie du
+   *  transport, ce que le marchand paie de sa poche.
+   *
+   *  Le code de type 'livraison' met le transport a zero sans toucher aux
+   *  produits. */
+  function calcul() {
+    const lignes = lignesDuPanier();
+    const sousTotal = lignes.reduce((s, l) => s + l.produit.price * l.qty, 0);
+    const zone = zoneChoisie();
+
+    let remise = 0;
+    if (promo?.type === 'pourcent') remise = Math.round((sousTotal * promo.valeur) / 100);
+    if (promo?.type === 'montant') remise = Math.min(promo.valeur, sousTotal);
+
+    let livraison = zone ? zone.tarif : undefined; // undefined : zone pas encore choisie
+    if (promo?.type === 'livraison' && typeof livraison === 'number') livraison = 0;
+
+    const total = sousTotal - remise + (typeof livraison === 'number' ? livraison : 0);
+    return { lignes, sousTotal, remise, livraison, zone, total };
+  }
+
+  function afficher() {
+    const { lignes, sousTotal, remise, livraison, zone, total } = calcul();
+
+    if (lignes.length === 0) {
+      bloc.hidden = true;
+      vide.hidden = false;
+      return;
+    }
+    vide.hidden = true;
+    bloc.hidden = false;
+
+    lignesEl.innerHTML = lignes.map((l) => {
+      const teinte = l.teinte
+        ? `<span class="recap-ligne__teinte">${echapper(l.teinte)}</span>`
+        : (l.produit.format ? `<span class="recap-ligne__teinte">${echapper(l.produit.format)}</span>` : '');
+      const visuel = l.produit.image
+        ? `<img src="${echapper(l.produit.image)}" alt="" class="recap-ligne__img" loading="lazy" />`
+        : '';
+      return `
+        <li class="recap-ligne">
+          <span class="recap-ligne__media">${visuel}<span class="recap-ligne__qty">${l.qty}</span></span>
+          <span class="recap-ligne__nom">${echapper(l.produit.name)}${teinte}</span>
+          <span class="recap-ligne__prix">${money.format(l.produit.price * l.qty)}</span>
+        </li>`;
+    }).join('');
+
+    document.getElementById('t-soustotal').textContent = money.format(sousTotal);
+
+    const ligneRemise = document.getElementById('ligne-reduction');
+    ligneRemise.hidden = remise === 0;
+    if (remise > 0) {
+      document.getElementById('t-reduction').textContent = '− ' + money.format(remise);
+    }
+
+    const cible = document.getElementById('t-livraison');
+    if (!zone) cible.textContent = T.totaux.livraisonAChoisir;
+    else if (livraison === null) cible.textContent = T.totaux.livraisonAConvenir;
+    else if (livraison === 0) cible.textContent = T.totaux.livraisonOfferte;
+    else cible.textContent = money.format(livraison);
+
+    document.getElementById('t-total').textContent = money.format(total);
+    delaiEl.textContent = zone?.delai ?? '';
+  }
+
+  /* ---------------------------------------------------------------
+     LE MASQUE DU TELEPHONE : XX XXX XX XX.
+
+     Tous les numeros senegalais font 9 chiffres et commencent par 7. Le
+     champ n'en accepte donc pas un de plus : avant, on pouvait taper
+     trente-deux chiffres et ne l'apprendre qu'au clic sur Payer.
+
+     `chiffresDe` retire tout ce qui n'est pas un chiffre, retire
+     l'indicatif 221 s'il a ete colle, et coupe a 9. C'est important pour le
+     COLLER : une cliente qui colle +221 77 123 45 67 depuis WhatsApp doit
+     obtenir 77 123 45 67, pas un refus.
+
+     `masque` regroupe en 2-3-2-2, la facon dont un numero se lit et se dicte
+     ici. Le champ affiche donc toujours la meme forme, quelle que soit la
+     facon dont on l'a saisi.
+     --------------------------------------------------------------- */
+  function chiffresDe(brut) {
+    return String(brut).replace(/\D/g, '').replace(/^221/, '').slice(0, 9);
+  }
+
+  function masque(brut) {
+    const d = chiffresDe(brut);
+    return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)]
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  /* 7 suivi de 0, 5, 6, 7 ou 8 : les prefixes attribues au Senegal. Un
+     numero de 9 chiffres commencant par 79 n'existe pas, et le laisser
+     passer donnerait un livreur qui appelle dans le vide. */
+  function telephoneValide(brut) {
+    return /^7[05678]\d{7}$/.test(chiffresDe(brut));
+  }
+
+  /* Volontairement permissive : un caractere, un arobase, un point, une
+     extension. Les regles completes d'une adresse tiennent en trois pages et
+     refusent des adresses valides. Ici, le but est d'attraper la faute de
+     frappe et le champ rempli n'importe comment, pas de certifier l'adresse :
+     seul un e-mail envoye prouve qu'une adresse existe. */
+  function emailValide(brut) {
+    return /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(String(brut).trim());
+  }
+
+  function erreur(id, montrer) {
+    const el = document.getElementById('erreur-' + id);
+    if (el) el.hidden = !montrer;
+    const champ = document.getElementById(id);
+    if (champ) champ.setAttribute('aria-invalid', String(montrer));
+    return !montrer;
+  }
+
+  /* Le message envoye au marchand quand demoMode vaut false.
+     Il est ecrit pour etre lu sur un telephone, dans l'ordre ou le marchand
+     en a besoin : ce qu'il prepare, ou il livre, comment il sera paye. */
+  function messageCommande(donnees) {
+    const { lignes, sousTotal, remise, livraison, zone, total } = calcul();
+
+    const articles = lignes.map((l) => {
+      const teinte = l.teinte ? ` (${config.ui.teinte.toLowerCase()} ${l.teinte})` : '';
+      return `${l.qty} x ${l.produit.name}${teinte}`;
+    }).join('\n');
+
+    const modeLu = T.modes.find((m) => m.cle === donnees.paiement);
+
+    const morceaux = [
+      `Bonjour ${config.boutique}, je souhaite commander :`,
+      '',
+      articles,
+      '',
+      `${T.totaux.sousTotal} : ${money.format(sousTotal)}`,
+    ];
+
+    if (remise > 0) morceaux.push(`${T.totaux.reduction} (${promo.code}) : − ${money.format(remise)}`);
+    morceaux.push(
+      `${T.totaux.livraison} : ` +
+      (livraison === null ? T.totaux.livraisonAConvenir
+        : livraison === 0 ? T.totaux.livraisonOfferte
+        : money.format(livraison))
+    );
+    morceaux.push(`${T.totaux.total} : ${money.format(total)}`, '');
+
+    morceaux.push(`${T.champs.nom} : ${donnees.nom}`);
+    morceaux.push(`${T.champs.telephone} : ${donnees.telephone}`);
+    if (donnees.email) morceaux.push(`${T.champs.email} : ${donnees.email}`);
+    if (zone) morceaux.push(`${T.champs.zone} : ${zone.libelle}`);
+    morceaux.push(`${T.champs.adresse} : ${donnees.adresse}`);
+    morceaux.push(`${T.paiementTitre} : ${modeLu ? modeLu.libelle : donnees.paiement}`);
+    if (donnees.note) morceaux.push('', `${T.champs.note} : ${donnees.note}`);
+
+    return morceaux.join('\n');
+  }
+
+  function viderPanier() {
+    try { localStorage.removeItem('sks_cart'); } catch { /* navigation privee */ }
+    window.dispatchEvent(new CustomEvent('sks:cart-updated'));
+  }
+
+  // --- Le code de reduction ------------------------------------------
+  promoForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const saisi = promoInput.value.trim().toUpperCase();
+    if (!saisi) return;
+
+    const trouve = (T.codes ?? []).find((c) => c.code.toUpperCase() === saisi);
+    promo = trouve ?? null;
+
+    promoRetour.hidden = false;
+    promoRetour.textContent = trouve
+      ? `${T.reduction.applique} : ${trouve.libelle}`
+      : T.reduction.inconnu;
+
+    if (trouve) promoInput.value = trouve.code;
+    afficher();
+  });
+
+  zoneEl?.addEventListener('change', () => {
+    erreur('zone', false);
+    afficher();
+  });
+
+  /* ---------------------------------------------------------------
+     LA VERIFICATION PENDANT LA SAISIE.
+ 
+     La validation a l'envoi existait deja et refusait bien << abcdef >>
+     comme numero et << hdgdhd >> comme e-mail : la commande ne partait pas.
+     Mais RIEN ne le disait avant d'appuyer sur Payer. On tapait des
+     lettres dans un champ telephone, elles s'affichaient, et on
+     l'apprenait seulement a la fin.
+ 
+     Deux reponses, et elles ne sont pas interchangeables :
+      - le TELEPHONE se filtre a la frappe. Une lettre n'a aucun sens dans
+        un numero : autant ne pas la laisser entrer. On garde les chiffres,
+        l'espace, le plus et le tiret, parce que 77 123 45 67 et
+        +221 77-123-45-67 sont deux facons d'ecrire le meme numero ;
+      - l'E-MAIL ne se filtre PAS. Toutes ses lettres sont legitimes, c'est
+        sa FORME qui doit etre juste. On le verifie donc quand on quitte le
+        champ, pas a chaque touche : signaler une erreur des la premiere
+        lettre tapee, alors que l'adresse est forcement incomplete, rend le
+        formulaire desagreable et apprend a ignorer les messages.
+     --------------------------------------------------------------- */
+  const champTel = document.getElementById('telephone');
+  const champMail = document.getElementById('email');
+
+  champTel?.addEventListener('input', () => {
+    const avant = champTel.value;
+    const curseur = champTel.selectionStart ?? avant.length;
+
+    /* Le curseur se repere par le NOMBRE DE CHIFFRES qui le precedent, pas
+       par sa position en caracteres : le masque ajoute et retire des
+       espaces, donc la position en caracteres ne veut plus rien dire d'une
+       frappe a l'autre. Sans cela, corriger un chiffre au milieu d'un
+       numero renvoie le curseur a la fin a chaque touche. */
+    const chiffresAvantCurseur = chiffresDe(avant.slice(0, curseur)).length;
+    const apres = masque(avant);
+
+    if (apres !== avant) {
+      champTel.value = apres;
+
+      let vus = 0;
+      let pos = apres.length;
+      for (let i = 0; i < apres.length; i += 1) {
+        if (/\d/.test(apres[i])) vus += 1;
+        if (vus === chiffresAvantCurseur) { pos = i + 1; break; }
+      }
+      if (chiffresAvantCurseur === 0) pos = 0;
+      champTel.setSelectionRange(pos, pos);
+    }
+
+    if (telephoneValide(champTel.value)) erreur('telephone', false);
+  });
+
+  champTel?.addEventListener('blur', () => {
+    if (champTel.value.trim()) erreur('telephone', !telephoneValide(champTel.value));
+  });
+
+  champMail?.addEventListener('blur', () => {
+    erreur('email', !!champMail.value.trim() && !emailValide(champMail.value));
+  });
+
+  champMail?.addEventListener('input', () => {
+    if (!champMail.value.trim() || emailValide(champMail.value)) erreur('email', false);
+  });
+
+  // --- L'envoi --------------------------------------------------------
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const donnees = Object.fromEntries(new FormData(form).entries());
+    if (lignesDuPanier().length === 0) { afficher(); return; }
+
+    /* Les quatre verifications tournent TOUTES, et ne sont pas chainees par
+       des &&. Court-circuitees, un nom vide empecherait le message d'erreur
+       du telephone de s'afficher, et la cliente corrigerait ses champs un
+       par un, en quatre allers-retours au lieu d'un. */
+    const okNom = erreur('nom', !String(donnees.nom || '').trim());
+    const okTel = erreur('telephone', !telephoneValide(donnees.telephone || ''));
+    const okMail = erreur('email', !!donnees.email && !emailValide(donnees.email));
+    const okZone = erreur('zone', !donnees.zone);
+    const okAdresse = erreur('adresse', !String(donnees.adresse || '').trim());
+
+    const premier = [
+      [okNom, 'nom'], [okTel, 'telephone'], [okMail, 'email'],
+      [okZone, 'zone'], [okAdresse, 'adresse'],
+    ].find(([ok]) => !ok);
+
+    if (premier) {
+      document.getElementById(premier[1])?.focus();
+      return;
+    }
+
+    envoyer(donnees);
+  });
+
+  /* L'envoi de la commande a Sen Kheweul Store.
+   *
+   *  Une seule requete : SKS cree le panier chez SureCart avec la cle du
+   *  marchand, y ajoute les frais de livraison, finalise en paiement a la
+   *  livraison et previent le groupe WhatsApp de l'equipe. La vitrine n'a
+   *  aucune cle SureCart, et c'est voulu : elle est publique.
+   *
+   *  LE REPLI EST LA REGLE, PAS L'EXCEPTION. Serveur muet, boutique
+   *  suspendue, catalogue en fixture sans identifiant de prix, reseau coupe
+   *  au mauvais moment : dans TOUS ces cas la commande part sur WhatsApp,
+   *  exactement comme avant ce branchement. Une panne de SKS ne doit jamais
+   *  couter une vente au marchand. */
+  async function envoyer(donnees) {
+    const bouton = form.querySelector('.payer');
+    const libelle = document.getElementById('payer-libelle');
+    const texteInitial = libelle ? libelle.textContent : '';
+
+    let envoyeeASks = false;
+    if (config.sks) {
+      const lignes = lignesDuPanier();
+      // Un seul article sans identifiant de prix et on ne tente meme pas :
+      // une commande amputee vaut moins qu'un message WhatsApp complet.
+      const tousIdentifies = lignes.length > 0 && lignes.every((l) => l.produit.priceId);
+      if (tousIdentifies) {
+        if (bouton) bouton.disabled = true;
+        if (libelle) libelle.textContent = T.envoiEnCours ?? 'Envoi...';
+        try {
+          const { livraison, zone } = calcul();
+          const res = await fetch(`${config.sks.api}/api/paiements/commande`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              boutique: config.sks.slug,
+              panier: lignes.map((l) => ({ priceId: l.produit.priceId, quantite: l.qty })),
+              client: {
+                nom: donnees.nom,
+                telephone: donnees.telephone,
+                email: donnees.email || null,
+                adresse: donnees.adresse,
+              },
+              /* Livraison a convenir (null) vaut zero ici : on ne facture pas
+                 un montant qu'on ne connait pas, le marchand le reglera au
+                 telephone. */
+              livraison: livraison === null ? 0 : livraison,
+              zone: zone ? zone.libelle : null,
+              note: donnees.note || null,
+            }),
+          });
+          envoyeeASks = res.ok;
+        } catch {
+          envoyeeASks = false; // reseau coupe : on retombe sur WhatsApp
+        }
+        if (bouton) bouton.disabled = false;
+        if (libelle) libelle.textContent = texteInitial;
+      }
+    }
+
+    /* En demonstration, RIEN NE PART. Voir l'avertissement en tete de
+       fichier : le meme code sert la demo et les vraies boutiques. */
+    if (!envoyeeASks && !config.demoMode && config.whatsapp) {
+      const texte = encodeURIComponent(messageCommande(donnees));
+      const numero = config.whatsapp.replace(/\D/g, '');
+      window.open(`https://wa.me/${numero}?text=${texte}`, '_blank', 'noopener');
+    }
+
+    viderPanier();
+    bloc.hidden = true;
+    vide.hidden = true;
+    confirmation.hidden = false;
+    confirmation.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  afficher();
+  window.addEventListener('sks:cart-updated', () => {
+    // Le tiroir reste utilisable depuis cette page : si la cliente y retire
+    // un article, le recapitulatif suit. Sauf apres validation, ou l'ecran
+    // de confirmation a pris la place et ne doit pas etre repousse.
+    if (confirmation.hidden) afficher();
+  });
+</script>

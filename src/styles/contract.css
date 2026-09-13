@@ -1,0 +1,78 @@
+/* La partie fixe du contrat.
+ *
+ *  Les tokens que le marchand NE regle PAS : echelle typographique, espaces,
+ *  mouvement, ombres. Ils sont identiques d'un template SKS a l'autre pour
+ *  que le vocabulaire CSS reste le meme partout.
+ *
+ *  Les tokens que le marchand regle (couleurs, polices, rayons, largeur,
+ *  densite) ne sont pas ici : ils sont poses sur :root par le layout, a
+ *  partir de theme.config.js via templates/shared/theme-contract.js.
+ *  Chercher une couleur en dur dans ce fichier serait une erreur.
+ */
+
+:root {
+  /* --- Echelle typographique, calquee sur ACSS ---
+     Regle SKS : tout texte est en --text-m. Seuls les titres (--h1 a --h4)
+     et les chiffres mis en avant (--text-xl) devient. Pas de xs/s/l. */
+  --text-m:  clamp(1rem, 0.97rem + 0.15vw, 1.0625rem);
+  --text-xl: clamp(1.75rem, 1.4rem + 1.6vw, 2.75rem);
+
+  --h1: clamp(2.75rem, 1.9rem + 4.2vw, 5rem);
+  --h2: clamp(1.875rem, 1.5rem + 1.9vw, 2.875rem);
+  --h3: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+  --h4: clamp(1.0625rem, 1rem + 0.3vw, 1.1875rem);
+
+  --leading-tight: 1.06;
+  --leading-snug: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
+
+  --tracking-tight: -0.02em;
+  --tracking-wide: 0.14em;
+
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* --- Espaces --- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  /* Gouttiere du conteneur. La LARGEUR du contenu, elle, est reglable :
+     c'est --content-width, pose par le theme. */
+  --gutter: var(--space-5);
+
+  /* --- Mouvement --- */
+  --duration-fast: 160ms;
+  --duration-base: 280ms;
+  --duration-slow: 620ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* --- Ombres. Teintees par la couleur de texte du theme, jamais du noir
+     pur : une ombre noire sur un fond creme fait une tache grise. --- */
+  --shadow-sm: 0 1px 2px color-mix(in oklab, var(--color-text) 8%, transparent);
+  --shadow-md: 0 12px 24px -12px color-mix(in oklab, var(--color-text) 22%, transparent);
+  --shadow-lg: 0 32px 60px -28px color-mix(in oklab, var(--color-text) 30%, transparent);
+
+  --header-height: 72px;
+}
+
+@media (width >= 768px) {
+  :root { --gutter: var(--space-8); }
+}
+
+@media (width >= 1200px) {
+  :root { --gutter: var(--space-10); }
+}

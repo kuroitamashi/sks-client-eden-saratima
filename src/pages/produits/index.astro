@@ -1,0 +1,72 @@
+---
+/* La page catalogue.
+ *
+ *  Elle n'existait pas dans beaute-01, qui est mono-produit : ses seules
+ *  pages sont l'accueil et la fiche. Un catalogue de vingt et un produits a
+ *  besoin d'un endroit ou on les voit tous, sinon la seule facon d'atteindre
+ *  le dernier est de faire glisser une rangee jusqu'au bout.
+ *
+ *  La page ne fait presque rien elle-meme : elle recupere la liste et la
+ *  passe a CatalogGrid, qui porte la grille et le filtre.
+ */
+import Default from '../../layouts/Default.astro';
+import CatalogGrid from '../../sections/CatalogGrid.astro';
+import Reassurance from '../../sections/Reassurance.astro';
+import { getContent } from '../../lib/theme.js';
+import { listProducts } from '../../lib/products.js';
+
+const produits = await listProducts();
+const content = await getContent();
+const page = content.cataloguePage;
+---
+
+<Default title={page.titre} description={page.texte}>
+  <section class="section--m tete">
+    <div class="container">
+      <nav class="crumbs" aria-label="Fil d'Ariane">
+        <a href="/" class="link">Accueil</a>
+        <span aria-hidden="true">/</span>
+        <span>{page.titre}</span>
+      </nav>
+
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">{page.surtitre}</p>
+        <h1>{page.titre}</h1>
+        <p class="lead">{page.texte}</p>
+      </div>
+    </div>
+  </section>
+
+  <CatalogGrid produits={produits} />
+  <Reassurance />
+</Default>
+
+<style>
+  /* Pas de padding bas : la grille qui suit pose deja le sien, et les deux
+     additionnes ouvraient un trou entre le chapo et les filtres. */
+  .tete {
+    padding-bottom: 0;
+  }
+
+  /* La marge basse de l'en-tete s'ajoutait au padding haut de la grille, ce
+     qui ouvrait 170 px entre le chapo et les boutons de filtre. */
+  .tete .section-head {
+    margin-bottom: 0;
+  }
+
+  .crumbs {
+    display: flex;
+    gap: var(--space-3);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-10);
+  }
+
+  /* Le titre de la page catalogue est un h1, mais il ne doit pas peser
+     autant que celui de la banniere d'accueil : la page est une liste, pas
+     une annonce. */
+  h1 {
+    font-size: var(--h2);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-tight);
+  }
+</style>

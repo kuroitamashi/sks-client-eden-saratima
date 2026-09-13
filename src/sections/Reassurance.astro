@@ -1,0 +1,43 @@
+---
+import { getContent } from '../lib/theme.js';
+const content = await getContent();
+---
+
+{content.reassurance.length > 0 && (
+  <section class="section--m bg--accent-soft">
+    <div class="container">
+      <ul class="reassurance">
+        {content.reassurance.map((item) => (
+          <li class="reassurance__item" data-reveal>
+            <h3 class="reassurance__title">{item.titre}</h3>
+            <p class="reassurance__text">{item.texte}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+)}
+
+<style>
+  .reassurance {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-8);
+
+    @media (width >= 900px) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  .reassurance__title {
+    font-family: var(--font-body);
+    font-size: var(--text-m);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0;
+    margin-bottom: var(--space-2);
+  }
+
+  .reassurance__text {
+    color: var(--color-text-muted);
+  }
+</style>

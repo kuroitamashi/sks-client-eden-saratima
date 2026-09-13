@@ -1,0 +1,73 @@
+---
+/* Bouton WhatsApp flottant.
+ *
+ *  Demande explicite du marchand : « un bouton WhatsApp bien visible pour
+ *  faciliter le contact avec les clientes ». L'icone de l'en-tete ne suffit
+ *  pas, elle disparait de l'attention des qu'on defile.
+ *
+ *  Il est noir et non vert, par la regle du template : un bouton est noir ou
+ *  blanc. L'icone reste reconnaissable, c'est elle qui porte l'identification.
+ *
+ *  Il se retire tout seul si aucun numero n'est renseigne dans le theme.
+ */
+import { getTheme, getContent } from '../lib/theme.js';
+
+const theme = await getTheme();
+const content = await getContent();
+
+const numero = theme.identity.whatsapp;
+const lien = numero ? `https://wa.me/${numero.replace(/\D/g, '')}` : null;
+---
+
+{lien && (
+  <a href={lien} class="wa" target="_blank" rel="noopener">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.554 4.118 1.528 5.845L.057 23.543a.5.5 0 0 0 .605.605l5.698-1.471A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22a9.95 9.95 0 0 1-5.154-1.413l-.369-.217-3.828.988.995-3.758-.235-.383A9.953 9.953 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm5.472-7.618c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+    </svg>
+    <span class="wa__label">{content.ui.ecrireSurWhatsapp}</span>
+  </a>
+)}
+
+<style>
+  .wa {
+    position: fixed;
+    right: var(--gutter);
+    /* --float-offset est releve par la barre d'achat mobile de la fiche
+       produit, pour que les deux ne se recouvrent jamais. */
+    bottom: calc(var(--space-6) + var(--float-offset, 0px));
+    z-index: 150;
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    border-radius: var(--radius-button);
+    box-shadow: var(--shadow-md);
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      bottom var(--duration-base) var(--ease-out);
+
+    &:hover {
+      background: color-mix(in oklab, var(--color-primary) 85%, var(--color-bg));
+      color: var(--color-on-primary);
+    }
+  }
+
+  /* Sur telephone, seule l'icone : l'ecran est etroit et c'est la ou passent
+     les commandes. Le libelle apparait des qu'il y a la place. */
+  .wa__label {
+    display: none;
+
+    @media (width >= 700px) {
+      display: inline;
+    }
+  }
+
+  @media (width >= 700px) {
+    .wa {
+      padding-inline: var(--space-5);
+    }
+  }
+</style>

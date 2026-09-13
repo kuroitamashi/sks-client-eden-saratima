@@ -1,0 +1,18 @@
+/* Ordre volontaire : la partie fixe du contrat, puis le reset, puis les
+   elements, puis les composants.
+
+   Les tokens reglables par le marchand ne sont pas importes ici : le layout
+   les pose sur :root dans une balise <style> du <head>. Les deux ensembles
+   sont disjoints (ici l'echelle typo, les espaces, le mouvement ; la-bas les
+   couleurs, polices, rayons, largeur), donc leur ordre n'a pas d'importance
+   et aucun des deux n'ecrase l'autre. */
+
+@import './contract.css';
+
+@import './base/reset.css';
+@import './base/elements.css';
+
+@import './components/section.css';
+@import './components/button.css';
+@import './components/accordion.css';
+@import './components/reveal.css';

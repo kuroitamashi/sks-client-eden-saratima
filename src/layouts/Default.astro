@@ -1,0 +1,210 @@
+---
+/* Le seul endroit ou le theme entre dans la page.
+ *
+ *  getThemeCss() rend une chaine de variables CSS, posee une fois sur :root.
+ *  Tout le reste du template ne connait que des noms de variables. C'est ce
+ *  qui fait qu'un changement de couleur est une valeur a changer, et non une
+ *  chasse au tresor dans quarante fichiers.
+ */
+import '../styles/global.css';
+import { getTheme, getContent, getThemeCss, getFontHref } from '../lib/theme.js';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import CartDrawer from '../components/CartDrawer.astro';
+import WhatsAppFloat from '../components/WhatsAppFloat.astro';
+
+/* `piedDePage` a false retire le pied de page. Il ne sert qu'a la page de
+   commande : une fois qu'on remplit ses coordonnees, une colonne de liens
+   vers le catalogue et les questions n'est plus une aide, c'est une porte
+   de sortie. Tous les tunnels de reference la retirent. */
+const { title, description, piedDePage = true } = Astro.props;
+
+const theme = await getTheme();
+const content = await getContent();
+const themeCss = await getThemeCss();
+const fontHref = await getFontHref();
+
+/* Un robots.txt seul ne suffit pas : il demande poliment de ne pas explorer,
+   la balise meta interdit d'indexer. Les deux ensemble, sinon une page
+   trouvee par un lien externe finit quand meme dans Google. */
+const indexable = import.meta.env.SITE_INDEXABLE === 'true';
+
+const pageTitle = title
+  ? `${title} · ${theme.identity.name}`
+  : `${theme.identity.name} · ${theme.identity.tagline}`;
+const pageDescription = description ?? theme.identity.tagline;
+
+// Astro.site vient de PUBLIC_BASE_URL. Sans lui, on retombe sur l'adresse
+// courante : correct en local, et jamais faux en production puisque le build
+// de production porte la bonne valeur.
+const base = Astro.site ?? Astro.url;
+const pageUrl = new URL(Astro.url.pathname, base).href;
+const ogImage = theme.identity.ogImage ? new URL(theme.identity.ogImage, base).href : null;
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={pageDescription} />
+    <meta name="theme-color" content={theme.colors.bg} />
+    {!indexable && <meta name="robots" content="noindex, nofollow" />}
+    <title>{pageTitle}</title>
+    <link rel="icon" type="image/svg+xml" href={theme.identity.favicon} />
+
+    {/* Open Graph : ce que voit le destinataire quand le lien est colle dans
+        WhatsApp. Les URL doivent etre ABSOLUES, WhatsApp et Facebook ne
+        resolvent pas un chemin relatif et affichent alors le lien tout nu.
+        C'est `site` dans astro.config.mjs, donc PUBLIC_BASE_URL, qui les
+        rend absolues : construire avec la mauvaise adresse casse la vignette
+        sans casser le site. */}
+    <meta property="og:site_name" content={theme.identity.name} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDescription} />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="fr_SN" />
+    <meta property="og:url" content={pageUrl} />
+    {ogImage && (
+      <>
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content={pageDescription} />
+        <meta name="twitter:card" content="summary_large_image" />
+      </>
+    )}
+
+    {fontHref && (
+      <>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link rel="stylesheet" href={fontHref} />
+      </>
+    )}
+
+    {/* Apparition au defilement : le CSS ne cache [data-reveal] que sous
+        html.js. Sans JavaScript, la classe n'est jamais posee et la page
+        reste entierement visible. Ce script est dans le <head> et non en bas
+        de page : pose plus tard, le contenu s'afficherait puis disparaitrait
+        pour reapparaitre, ce qui fait clignoter chaque chargement. */}
+    <script is:inline>document.documentElement.classList.add('js');</script>
+
+    {/* is:inline : Astro laisse la balise telle quelle. Sans cela il
+        scoperait le selecteur en :root[data-astro-cid-...], qui ne
+        correspond a rien, et tout le theme tomberait a l'eau. */}
+    <style is:inline set:html={`:root {\n  ${themeCss}\n}`}></style>
+  </head>
+
+  <body>
+    <a href="#contenu" class="skip-link">{content.ui.allerAuContenu}</a>
+
+    <Header />
+
+    <main id="contenu">
+      <slot />
+    </main>
+
+    {piedDePage && <Footer />}
+    <CartDrawer />
+    <WhatsAppFloat />
+
+    <script>
+      /* Apparition au defilement, une seule fois par element.
+       *
+       *  Le decalage en cascade est calcule AU MOMENT de l'apparition, pas
+       *  ecrit dans le HTML : les elements qui entrent dans le champ en meme
+       *  temps sont regroupes par section et decales de 80 ms chacun, et un
+       *  element qui entre seul n'attend pas. Un decalage ecrit d'avance
+       *  ferait attendre 400 ms a un element arrivant seul en bas de page,
+       *  sans que rien ne le justifie.
+       *
+       *  Plafond a 640 ms : sur la grille du catalogue, vingt cartes decalees
+       *  de 80 ms feraient une seconde et demie avant la derniere.
+       *
+       *  unobserve apres coup : une carte deja apparue ne rejoue pas son
+       *  animation quand on remonte la page.
+       */
+      const revealEls = document.querySelectorAll('[data-reveal]');
+
+      if (revealEls.length && 'IntersectionObserver' in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            const parGroupe = new Map();
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              const el = entry.target;
+              const groupe = el.closest('section');
+              const n = parGroupe.get(groupe) ?? 0;
+              parGroupe.set(groupe, n + 1);
+              el.style.setProperty('--reveal-delay', Math.min(n * 80, 640) + 'ms');
+              el.classList.add('is-visible');
+              io.unobserve(el);
+            }
+          },
+          /* -15% en bas : l'element s'anime quand il a franchi le bord du
+             champ, pas des qu'il l'effleure. Sinon l'animation est finie
+             avant qu'on ait eu le temps de la voir. */
+          { threshold: 0, rootMargin: '0px 0px -15% 0px' }
+        );
+
+        revealEls.forEach((el) => io.observe(el));
+
+        /* LE FILET DE SECURITE DU BAS DE PAGE, ET IL CORRIGE UN VRAI BUG.
+         *
+         *  Le rootMargin de -15 % demande a un element d'avoir franchi le
+         *  bord bas du champ pour apparaitre. Or la DERNIERE section de la
+         *  page, le bandeau de reassurance, se trouve dans ces 15 % quand on
+         *  est arrive tout en bas : elle ne franchit jamais le seuil, donc
+         *  elle ne s'affiche JAMAIS. Constate a l'ecran sur l'accueil, ou la
+         *  bande etait un aplat vide.
+         *
+         *  Aucune verification automatique ne voyait ce defaut : le HTML est
+         *  correct, la compilation passe, et les quatre elements sont bien
+         *  dans la page. Ils sont simplement transparents.
+         *
+         *  Des qu'on touche le bas du document, tout ce qui reste apparait.
+         *  Deux pixels de tolerance parce que les navigateurs arrondissent la
+         *  position de defilement, et qu'une egalite stricte n'est jamais
+         *  vraie sur certains Android. */
+        const finirLeBas = () => {
+          const enBas =
+            window.innerHeight + window.scrollY >= document.body.scrollHeight - 2;
+          if (!enBas) return;
+          document.querySelectorAll('[data-reveal]:not(.is-visible)').forEach((el) => {
+            el.classList.add('is-visible');
+            io.unobserve(el);
+          });
+        };
+
+        window.addEventListener('scroll', finirLeBas, { passive: true });
+        window.addEventListener('resize', finirLeBas);
+        /* Page plus courte que l'ecran : on est deja en bas au chargement,
+           et sans cet appel rien n'apparaitrait du tout. */
+        finirLeBas();
+      } else {
+        // Navigateur sans IntersectionObserver : tout est visible d'emblee.
+        revealEls.forEach((el) => el.classList.add('is-visible'));
+      }
+    </script>
+
+    <style is:global>
+      .skip-link {
+        position: absolute;
+        left: var(--space-4);
+        top: var(--space-4);
+        z-index: 300;
+        padding: var(--space-3) var(--space-5);
+        background: var(--color-primary);
+        color: var(--color-on-primary);
+        border-radius: var(--radius-button);
+        transform: translateY(-200%);
+        transition: transform var(--duration-fast) var(--ease-out);
+      }
+
+      .skip-link:focus-visible {
+        transform: translateY(0);
+      }
+    </style>
+  </body>
+</html>

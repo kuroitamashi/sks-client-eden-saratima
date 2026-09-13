@@ -1,0 +1,46 @@
+---
+import { getContent } from '../lib/theme.js';
+import Accordion from '../components/Accordion.astro';
+
+const content = await getContent();
+const faq = content.faq;
+---
+
+{faq.liste.length > 0 && (
+  <section class="section--l" id="faq">
+    <div class="container faq">
+      <div class="faq__head" data-reveal>
+        <p class="eyebrow">{faq.surtitre}</p>
+        <h2>{faq.titre}</h2>
+      </div>
+      <div class="faq__body" data-reveal>
+        <Accordion items={faq.liste} name="faq" />
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  .faq {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-10);
+
+    @media (width >= 900px) {
+      grid-template-columns: 1fr 1.4fr;
+      gap: var(--space-16);
+      align-items: start;
+    }
+  }
+
+  .faq__head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+
+    @media (width >= 900px) {
+      position: sticky;
+      top: calc(var(--header-height) + var(--space-8));
+    }
+  }
+</style>

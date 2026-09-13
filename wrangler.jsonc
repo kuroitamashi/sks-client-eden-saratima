@@ -1,0 +1,15 @@
+{
+  // Ce que `npx wrangler deploy` publie.
+  //
+  // Pas de champ "main" : il n'y a aucun code serveur, seulement des fichiers
+  // statiques. Cloudflare sert alors directement le contenu de dist/, ce qui
+  // est exactement ce que produit `astro build`.
+  //
+  // Les URL en dossier (/produits/serum-vitamine-c/) sont resolues vers leur
+  // index.html par Cloudflare, sans reglage supplementaire.
+  "name": "sks-theme-taaru",
+  "compatibility_date": "2026-08-27",
+  "assets": {
+    "directory": "./dist"
+  }
+}

@@ -1,0 +1,68 @@
+---
+/* Le conseil d'usage, sur la fiche produit.
+ *
+ *  C'est la section qui remplace la vendeuse. En boutique, on demande
+ *  << je le mets quand ? >> et << j'en mets combien ? >>, et c'est la
+ *  reponse a ces deux questions qui decide de l'achat, pas la liste des
+ *  ingredients.
+ *
+ *  ELLE DECRIT UN GESTE, JAMAIS UN RESULTAT.
+ *  C'est le garde-fou principal de Taaru : le champ dit quand appliquer,
+ *  sur quelle peau et ce qu'il ne faut pas faire. Il ne dit jamais ce que
+ *  le produit fera d'une peau. Une phrase qui commence par << en trois
+ *  semaines >> n'a rien a faire ici : c'est une promesse dont le marchand
+ *  repondrait, et personne au catalogue n'a mene d'essai clinique.
+ *
+ *  Le texte vient de product.metadata.rituel, donc du catalogue, et non du
+ *  contenu du template : chaque produit a le sien. La section disparait
+ *  entierement quand il manque.
+ */
+import { getContent } from '../lib/theme.js';
+
+const { product } = Astro.props;
+const content = await getContent();
+
+// Le champ porte des sauts de ligne doubles entre les paragraphes.
+const paragraphes = String(product.metadata?.rituel ?? '')
+  .split('\n')
+  .map((p) => p.trim())
+  .filter(Boolean);
+---
+
+{paragraphes.length > 0 && (
+  <section class="section--l bg--surface" id="presentation">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">{content.presentation.surtitre}</p>
+        <h2>{content.presentation.titre}</h2>
+        <p class="lead">{content.presentation.texte}</p>
+      </div>
+
+      <div class="presentation" data-reveal>
+        {paragraphes.map((p) => <p class="presentation__p">{p}</p>)}
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  /* Fond de page et non de surface : le bloc est une fiche posee sur la
+     section, c'est ce qui le detache du fond creme. */
+  .presentation {
+    max-width: 62ch;
+    padding: var(--space-10) var(--space-8);
+    background: var(--color-bg);
+    border-radius: var(--radius-card);
+  }
+
+  .presentation__p {
+    line-height: var(--leading-relaxed);
+  }
+
+  /* Ecart entre paragraphes ecrit a plat et non en `& + &` : la premiere
+     version ne s'appliquait pas une fois passee par le scopage d'Astro, et
+     les deux paragraphes du conseil se touchaient. */
+  .presentation__p + .presentation__p {
+    margin-top: var(--space-6);
+  }
+</style>

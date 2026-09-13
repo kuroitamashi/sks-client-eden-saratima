@@ -1,0 +1,210 @@
+---
+/* Le rituel du moment, sur l'accueil.
+ *
+ *  Un catalogue de vingt et un produits pose un probleme que le mono-produit
+ *  n'a pas : il n'y a pas de porte d'entree. Une visiteuse qui ne sait pas
+ *  ce qu'elle cherche repart. Cette section lui donne un point de depart, et
+ *  c'est le seul endroit de l'accueil ou un produit est presente en detail.
+ *
+ *  Le nom, le prix, la texture et l'image viennent du produit marque
+ *  `featured` dans le catalogue. Les mots autour viennent du contenu du
+ *  template. Changer le produit du moment est donc un booleen a deplacer
+ *  dans la fixture, pas une section a reecrire.
+ */
+import ProductMedia from '../components/ProductMedia.astro';
+import { getTheme, getContent } from '../lib/theme.js';
+import { formatMoney } from '../lib/format.js';
+
+const { product } = Astro.props;
+const theme = await getTheme();
+const content = await getContent();
+const focus = content.productFocus;
+
+const texture = product?.metadata?.texture ?? null;
+const moment = product?.metadata?.moment ?? null;
+---
+
+{product && (
+  <section class="section--l" id="focus">
+    <div class="container focus">
+      {/* Trois blocs et non deux, pour que l'ordre de lecture soit juste sur
+          telephone. En deux blocs, l'image arrivait AVANT le surtitre
+          << Le rituel du moment >>, donc avant qu'on sache de quoi il s'agit :
+          une image seule au milieu d'une page, sans titre au-dessus, ne veut
+          rien dire. L'ordre est maintenant : on annonce, on montre, on
+          detaille. Sur ordinateur, la grille remet l'image a gauche sur les
+          deux rangees, et rien ne change. */}
+      <div class="focus__intro" data-reveal>
+        <p class="eyebrow">{focus.surtitre}</p>
+        <h2 class="focus__heading">{focus.titre}</h2>
+        <p class="lead">{focus.texte}</p>
+      </div>
+
+      <div class="focus__media" data-reveal>
+        <ProductMedia product={product} ratio="portrait" classe="focus__visuel" />
+      </div>
+
+      <div class="focus__details" data-reveal>
+        <div class="focus__book">
+          <h3 class="focus__title">{product.name}</h3>
+          {/* Chaque etiquette est assemblee en UNE seule expression.
+              Ecrites en `{a} {b}`, deux expressions voisines separees par une
+              espace perdent cette espace a la compilation, et la page
+              affichait << ParAwa Ndiaye >> et << 164pages >>. Le gabarit
+              litteral ne peut pas subir ce sort. */}
+          <p class="focus__meta">
+            {texture && <span>{texture}</span>}
+            {product.format && <span>{`· ${product.format}`}</span>}
+            {moment && <span>{`· ${moment}`}</span>}
+          </p>
+          <p class="focus__subtitle">{product.subtitle}</p>
+        </div>
+
+        <ul class="focus__points">
+          {focus.points.map((point) => <li class="focus__point">{point}</li>)}
+        </ul>
+
+        <div class="focus__actions">
+          <a href={`/produits/${product.slug}/`} class="btn btn--primary">
+            {focus.lienFiche}
+          </a>
+          <p class="focus__price">
+            {formatMoney(product.price, theme.commerce)}
+            {product.comparePrice && (
+              <s class="focus__compare">{formatMoney(product.comparePrice, theme.commerce)}</s>
+            )}
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  /* Les zones nommees disent l'intention plutot que des numeros d'ordre :
+     sur telephone on empile intro, image, details ; sur ordinateur l'image
+     occupe une colonne entiere a gauche, sur les deux rangees. */
+  .focus {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'intro'
+      'media'
+      'details';
+    gap: var(--space-10);
+
+    @media (width >= 900px) {
+      grid-template-columns: 0.8fr 1fr;
+      grid-template-areas:
+        'media intro'
+        'media details';
+      gap: var(--space-8) var(--space-16);
+      align-items: center;
+    }
+  }
+
+  .focus__intro { grid-area: intro; }
+  .focus__details { grid-area: details; }
+
+  .focus__media {
+    grid-area: media;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* Le visuel occupe toute sa colonne, contrairement a la couverture de livre de
+     Xam Xam qui etait bridee a 320 px : un livre a une taille physique
+     qu'on reconnait, un flacon n'en a pas, et le brider le fait paraitre
+     perdu au milieu de sa colonne. */
+  .focus__media :global(.focus__visuel) {
+    width: 100%;
+  }
+
+  .focus__heading {
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-5);
+  }
+
+  /* Le filet du bloc livre ne sert plus a separer l'editorial du produit sur
+     telephone, puisque l'image est passee entre les deux. Il ne reste
+     utile que sur ordinateur, ou intro et details se suivent. */
+  .focus__book {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+
+    @media (width >= 900px) {
+      padding-top: var(--space-6);
+      border-top: 1px solid var(--color-border);
+    }
+  }
+
+  /* Le bloc du livre est detache par un filet, pas par un fond : la regle
+     SKS veut des bordures strategiques, et celle-ci separe l'editorial de
+     la marque du livre lui-meme. */
+  .focus__book {
+    margin-top: var(--space-10);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .focus__title {
+    font-size: var(--h3);
+  }
+
+  .focus__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+  }
+
+  .focus__subtitle {
+    margin-top: var(--space-4);
+  }
+
+  .focus__points {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-top: var(--space-8);
+  }
+
+  .focus__point {
+    padding-left: var(--space-6);
+    position: relative;
+    color: var(--color-text-muted);
+  }
+
+  .focus__point::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.6em;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-accent);
+  }
+
+  .focus__actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-6);
+    margin-top: var(--space-10);
+  }
+
+  .focus__price {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    font-weight: var(--weight-medium);
+  }
+
+  .focus__compare {
+    color: var(--color-text-muted);
+    font-weight: var(--weight-regular);
+  }
+</style>

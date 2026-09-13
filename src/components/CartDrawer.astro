@@ -1,0 +1,510 @@
+---
+/* Tiroir panier.
+ *
+ *  Le panier vit dans le navigateur (localStorage), pas sur un serveur : un
+ *  site SSG n'en a pas. Le catalogue est depose dans la page sous forme de
+ *  JSON pour que le tiroir puisse afficher un nom et un prix sans requete.
+ *  A l'echelle d'une boutique mono-produit, c'est quelques centaines
+ *  d'octets, et cela evite un aller-retour reseau en 3G.
+ *
+ *  LA DIFFERENCE AVEC XAM XAM : le tiroir n'est plus la fin du parcours.
+ *  Chez Xam Xam, le bouton Commander ouvrait WhatsApp avec le detail du
+ *  panier. Ici il mene a /commande/, une vraie page de bon de commande qui
+ *  recupere le nom, le telephone, l'adresse et le mode de paiement. Le
+ *  tiroir n'envoie donc plus rien nulle part : il compte, il additionne, et
+ *  il passe la main.
+ *
+ *  UNE LIGNE DE PANIER EST IDENTIFIEE PAR SON PRODUIT ET SA TEINTE.
+ *  Deux teintes du meme fond de teint sont deux lignes distinctes, avec
+ *  chacune sa quantite. Sans cela, ajouter la teinte 350 puis la teinte 420
+ *  donnerait << 2 x Fond de teint >> et le marchand devrait rappeler pour
+ *  savoir laquelle. La teinte n'est PAS une variante de prix : c'est une
+ *  precision qui voyage avec la ligne. Voir la note en tete de la fixture.
+ */
+import { getTheme, getContent } from '../lib/theme.js';
+import { listProducts } from '../lib/products.js';
+
+const theme = await getTheme();
+const content = await getContent();
+const produits = await listProducts();
+
+const catalogue = produits.map((p) => ({
+  id: p.id,
+  name: p.name,
+  price: p.price,
+  image: p.images?.[0] ?? null,
+  format: p.format ?? null,
+}));
+
+/* La destination du bouton Commander, rendue des le serveur.
+   Sans elle le bouton porte href="#" tant que le script n'a pas tourne : un
+   clic tres rapide, ou un script qui echoue, renvoie la cliente en haut de
+   la page au lieu de la page de commande. */
+const lienCommande = theme.commerce.checkoutUrl ?? '/commande/';
+
+const config = {
+  currency: theme.commerce.currency,
+  locale: theme.commerce.locale,
+  checkoutUrl: lienCommande,
+  ui: content.ui,
+};
+---
+
+<div class="cart" id="cart" hidden>
+  <div class="cart__scrim" data-cart-close></div>
+
+  <aside class="cart__panel" role="dialog" aria-modal="true" aria-label={content.ui.panier} tabindex="-1">
+    <header class="cart__head">
+      <h2 class="cart__title">{content.ui.panier}</h2>
+      <button class="icon-btn" data-cart-close aria-label="Fermer le panier">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
+    </header>
+
+    <div class="cart__body" id="cart-body"></div>
+
+    <footer class="cart__foot" id="cart-foot">
+      <div class="cart__total">
+        <span>{content.ui.sousTotal}</span>
+        <span id="cart-total"></span>
+      </div>
+      <p class="cart__note">{content.ui.livraisonCalculee}</p>
+      <a class="btn btn--primary btn--full" id="cart-checkout" href={lienCommande}>{content.ui.commander}</a>
+    </footer>
+  </aside>
+</div>
+
+<script type="application/json" id="cart-catalogue" set:html={JSON.stringify(catalogue)}></script>
+<script type="application/json" id="cart-config" set:html={JSON.stringify(config)}></script>
+
+<style>
+  .cart {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+
+    /* dvh et non vh, avec vh en repli pour les vieux navigateurs.
+       Sur Android et iOS, 100vh vaut la hauteur de l'ecran BARRE D'ADRESSE
+       COMPRISE. Un panneau en 100vh depasse donc du bas, et c'est exactement
+       le bouton Commander qui passe dessous : la cliente arrive au bout de
+       son panier et ne voit pas le bouton. dvh suit la hauteur reellement
+       visible, barre comprise ou non. */
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .cart__scrim {
+    position: absolute;
+    inset: 0;
+    background: color-mix(in oklab, var(--color-text) 40%, transparent);
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-out);
+  }
+
+  .cart[data-state='open'] .cart__scrim {
+    opacity: 1;
+  }
+
+  .cart__panel {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    width: min(430px, 100%);
+    background: var(--color-bg);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform var(--duration-base) var(--ease-out);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .cart[data-state='open'] .cart__panel {
+    transform: translateX(0);
+  }
+
+  .cart__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-5) var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .cart__title {
+    font-size: var(--h3);
+  }
+
+  .cart__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-6);
+  }
+
+  /* flex-shrink: 0 pour que le pied ne se comprime jamais quand le panier
+     est long : c'est le corps qui defile, pas le pied qui retrecit. */
+  .cart__foot {
+    flex-shrink: 0;
+    padding: var(--space-6);
+    /* La barre de geste des telephones recents mange le bas de l'ecran.
+       Sans env(safe-area-inset-bottom), le bouton Commander se retrouve
+       a moitie dessous sur un iPhone. */
+    padding-bottom: max(var(--space-6), env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    background: var(--color-bg);
+  }
+
+  /* Panier vide : le bouton reste EN PLACE, il ne disparait pas. Il est
+     seulement inactif, parce qu'envoyer une commande vide sur WhatsApp
+     n'aurait pas de sens. Le garder visible evite que le pied du panneau
+     saute au premier article ajoute. */
+  #cart-checkout[aria-disabled='true'] {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
+  .cart__total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-weight: var(--weight-medium);
+  }
+
+  .cart__note {
+    color: var(--color-text-muted);
+  }
+
+  .cart__empty {
+    color: var(--color-text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    align-items: flex-start;
+  }
+</style>
+
+<style is:global>
+  .cart-line {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: var(--space-4);
+    padding-bottom: var(--space-5);
+    margin-bottom: var(--space-5);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .cart-line:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+
+  .cart-line__image {
+    width: 72px;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: var(--radius-image);
+    background: var(--color-surface);
+  }
+
+  .cart-line__name {
+    font-family: var(--font-display);
+    font-size: var(--h4);
+    margin-bottom: var(--space-1);
+  }
+
+  .cart-line__meta {
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-1);
+  }
+
+  .cart-line__teinte {
+    color: var(--color-text);
+    margin-bottom: var(--space-3);
+  }
+
+  /* La vignette de repli, tant qu'il n'y a pas de photos. Memes tokens que
+     ProductMedia, en plus petit. */
+  .cart-line__image--repli {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-weight: var(--font-display-weight);
+    font-size: var(--h3);
+    color: color-mix(in oklab, var(--color-text) 25%, var(--color-surface));
+  }
+
+  .cart-line__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .qty {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-button);
+    overflow: hidden;
+  }
+
+  .qty button {
+    width: 34px;
+    height: 34px;
+    color: var(--color-text);
+    transition: background-color var(--duration-fast) var(--ease-out);
+  }
+
+  .qty button:hover {
+    background: var(--color-surface);
+  }
+
+  .qty span {
+    min-width: 28px;
+    text-align: center;
+  }
+</style>
+
+<script>
+  const root = document.getElementById('cart');
+  const body = document.getElementById('cart-body');
+  const foot = document.getElementById('cart-foot');
+  const totalEl = document.getElementById('cart-total');
+  const checkout = document.getElementById('cart-checkout');
+
+  const catalogue = JSON.parse(document.getElementById('cart-catalogue').textContent);
+  const config = JSON.parse(document.getElementById('cart-config').textContent);
+
+  const money = new Intl.NumberFormat(config.locale, {
+    style: 'currency',
+    currency: config.currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+
+  const read = () => {
+    try { return JSON.parse(localStorage.getItem('sks_cart') || '[]'); } catch { return []; }
+  };
+
+  /* Les lignes du panier sont ecrites en innerHTML, et ce qu'on y insere
+     vient du marchand (nom, format, image, teinte) via SureCart. Un nom de
+     produit contenant du HTML s'executerait donc chez la cliente. Les
+     guillemets sont echappes aussi : ces valeurs servent en attribut. */
+  const echapper = (valeur) =>
+    String(valeur ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+
+  /* La cle d'une ligne, c'est le produit ET la teinte.
+     Le separateur est deux double-points parce qu'aucun identifiant de
+     produit ni aucun nom de teinte n'en contient : un separateur present
+     dans les donnees couperait la cle au mauvais endroit. */
+  const cle = (l) => l.id + '::' + (l.teinte || '');
+
+  const write = (cart) => {
+    try { localStorage.setItem('sks_cart', JSON.stringify(cart)); } catch { /* navigation privee */ }
+    window.dispatchEvent(new CustomEvent('sks:cart-updated'));
+  };
+
+  /* Vrai une seule fois par chargement de page : le nettoyage ci-dessous
+     ecrit dans le panier, ce qui declenche un nouveau rendu. Sans ce
+     garde-fou, un navigateur en navigation privee, ou l'ecriture echoue
+     silencieusement, rendrait et nettoierait en boucle sans fin. */
+  let nettoyageFait = false;
+
+  function render() {
+    const cart = read();
+    const lignes = cart
+      .map((item) => ({ ...item, produit: catalogue.find((p) => p.id === item.id) }))
+      .filter((l) => l.produit);
+
+    /* Une ligne dont le produit n'existe plus au catalogue est RETIREE du
+       stockage, pas seulement masquee a l'affichage.
+       
+       Avant, elle etait filtree ici et laissee dans localStorage. Or la
+       pastille de l'en-tete compte les lignes du stockage sans connaitre le
+       catalogue : elle annoncait donc un article que le tiroir n'affichait
+       pas, et le panier restait bloque sur << 1 >> et << Ton panier est
+       vide >> pour toujours.
+       
+       Deux cas produisent une ligne fantome : un livre retire du catalogue
+       par le marchand, et un panier laisse par une AUTRE boutique servie sur
+       la meme adresse, ce qui arrive en developpement puisque tous les
+       templates SKS ecoutent le port 4321 et partagent donc le meme
+       localStorage. */
+    if (!nettoyageFait && lignes.length !== cart.length) {
+      nettoyageFait = true;
+      write(lignes.map((l) => ({ id: l.id, qty: l.qty, teinte: l.teinte || null })));
+    }
+
+    /* Le pied reste toujours visible, panier plein ou vide, comme sur les
+       boutiques de reference. Il n'est jamais masque : c'est le bouton qui
+       devient inactif. */
+    foot.hidden = false;
+
+    if (lignes.length === 0) {
+      body.innerHTML =
+        '<div class="cart__empty"><p>' + config.ui.panierVide + '</p>' +
+        '<button class="btn btn--outline" data-cart-close>' + config.ui.continuerAchats + '</button></div>';
+      totalEl.textContent = money.format(0);
+      // Un <a> ne se desactive pas comme un <button> : on lui retire sa
+      // destination, on le sort du parcours clavier, et aria-disabled
+      // l'annonce aux lecteurs d'ecran.
+      checkout.setAttribute('aria-disabled', 'true');
+      checkout.removeAttribute('href');
+      checkout.tabIndex = -1;
+      return;
+    }
+
+    checkout.setAttribute('aria-disabled', 'false');
+    checkout.tabIndex = 0;
+
+    body.innerHTML = lignes.map((l) => {
+      const k = cle(l);
+      /* La vignette de repli du tiroir est ecrite ici et non par
+         ProductMedia : le tiroir se redessine en JavaScript dans le
+         navigateur, il n'a pas de composant Astro sous la main. Elle reprend
+         volontairement les memes tokens, pour que les deux ne divergent pas
+         le jour ou les photos arrivent. */
+      const vignette = l.produit.image
+        ? `<img class="cart-line__image" src="${echapper(l.produit.image)}" alt="" loading="lazy" width="72" height="72">`
+        : `<div class="cart-line__image cart-line__image--repli">${echapper(l.produit.name.trim().charAt(0).toUpperCase())}</div>`;
+
+      const teinte = l.teinte
+        ? `<p class="cart-line__teinte">${echapper(config.ui.teinteChoisie)} : ${echapper(l.teinte)}</p>`
+        : '';
+
+      return `
+      <article class="cart-line">
+        ${vignette}
+        <div>
+          <h3 class="cart-line__name">${echapper(l.produit.name)}</h3>
+          <p class="cart-line__meta">${l.produit.format ? echapper(l.produit.format) + ' · ' : ''}${money.format(l.produit.price)}</p>
+          ${teinte}
+          <div class="cart-line__row">
+            <span class="qty">
+              <button type="button" data-dec="${echapper(k)}" aria-label="Diminuer la quantité">−</button>
+              <span>${l.qty}</span>
+              <button type="button" data-inc="${echapper(k)}" aria-label="Augmenter la quantité">+</button>
+            </span>
+            <button type="button" class="link" data-remove="${echapper(k)}">${echapper(config.ui.retirer)}</button>
+          </div>
+        </div>
+      </article>`;
+    }).join('');
+
+    const total = lignes.reduce((sum, l) => sum + l.produit.price * l.qty, 0);
+    totalEl.textContent = money.format(total);
+    foot.hidden = false;
+
+    checkout.href = config.checkoutUrl;
+  }
+
+  function change(k, delta) {
+    const cart = read();
+    const line = cart.find((l) => cle(l) === k);
+    if (!line) return;
+    line.qty += delta;
+    write(cart.filter((l) => l.qty > 0));
+  }
+
+  /* Le tiroir se declare aria-modal, il doit donc tenir la promesse : tant
+     qu'il est ouvert, le clavier ne sort pas du panneau. Sans ce piege, Tab
+     emmene la cliente dans la page derriere, qu'elle ne voit plus. */
+  const panneau = root.querySelector('.cart__panel');
+  const FOCUSABLES = 'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  let declencheur = null;
+
+  /* offsetParent ecarte ce qui n'est pas affiche, tabIndex ecarte ce qui a
+     ete sorti du parcours clavier : le bouton Commander d'un panier vide
+     porte tabIndex -1, le piege ne doit pas l'y ramener. */
+  const focusables = () =>
+    [...panneau.querySelectorAll(FOCUSABLES)]
+      .filter((el) => el.offsetParent !== null && el.tabIndex >= 0);
+
+  function open() {
+    /* Retenu AVANT d'ouvrir : c'est la que le focus vit encore. */
+    declencheur = document.activeElement;
+    root.hidden = false;
+    requestAnimationFrame(() => {
+      root.dataset.state = 'open';
+      (focusables()[0] ?? panneau).focus();
+    });
+    document.body.style.overflow = 'hidden';
+  }
+
+  function close() {
+    root.dataset.state = 'closed';
+    document.body.style.overflow = '';
+    setTimeout(() => { root.hidden = true; }, 280);
+    /* Rendu tout de suite, sans attendre la fin de l'animation : le focus
+       ne doit jamais stationner sur un panneau en train de disparaitre. */
+    declencheur?.focus();
+    declencheur = null;
+  }
+
+  function piegerTab(e) {
+    const liste = focusables();
+    if (liste.length === 0) return e.preventDefault();
+
+    const premier = liste[0];
+    const dernier = liste[liste.length - 1];
+
+    if (e.shiftKey && document.activeElement === premier) {
+      e.preventDefault();
+      dernier.focus();
+    } else if (!e.shiftKey && document.activeElement === dernier) {
+      e.preventDefault();
+      premier.focus();
+    }
+  }
+
+  root.addEventListener('click', (e) => {
+    const t = e.target;
+    if (t.closest('[data-cart-close]')) return close();
+    if (t.dataset.inc) return change(t.dataset.inc, 1);
+    if (t.dataset.dec) return change(t.dataset.dec, -1);
+    if (t.dataset.remove) {
+      write(read().filter((l) => cle(l) !== t.dataset.remove));
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (root.hidden) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === 'Tab') piegerTab(e);
+  });
+
+  window.addEventListener('sks:cart-open', () => { render(); open(); });
+  window.addEventListener('sks:cart-updated', render);
+
+  /* Tout bouton [data-add] de n'importe quelle page alimente le panier :
+     les pages n'ont pas a connaitre le tiroir. */
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-add]');
+    if (!btn) return;
+    const id = btn.dataset.add;
+    const qty = Number(btn.dataset.qty || 1);
+    /* La teinte est posee sur le bouton par le nuancier de la fiche produit
+       (data-teinte). Une carte de catalogue n'en a jamais : un produit a
+       teintes n'a pas de bouton d'ajout, il renvoie a sa fiche. */
+    const teinte = btn.dataset.teinte || null;
+    const cart = read();
+    const line = cart.find((l) => cle(l) === cle({ id, teinte }));
+    if (line) line.qty += qty;
+    else cart.push({ id, qty, teinte });
+    write(cart);
+    render();
+    open();
+  });
+
+  render();
+</script>

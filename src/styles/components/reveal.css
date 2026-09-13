@@ -1,0 +1,45 @@
+/* Apparition au defilement.
+ *
+ *  Repris tel quel de la landing page (marketing-landing-page,
+ *  src/styles/components/reveal.css), volontairement : c'est le meme geste
+ *  visuel sur senkheweulstore.com et sur la boutique du marchand, donc une
+ *  cliente qui passe de l'un a l'autre ne change pas d'univers.
+ *
+ *  Le point important est le selecteur `html.js`. La classe `js` est posee
+ *  par un script dans le <head>. Sans JavaScript, la classe n'existe pas, la
+ *  regle ne s'applique pas, et TOUT LE CONTENU RESTE VISIBLE.
+ *
+ *  Ce n'est pas une precaution theorique : sans ce garde-fou, un robot
+ *  d'indexation ou un telephone dont le JavaScript n'a pas fini de charger en
+ *  3G verrait une page entierement vide. Le contenu serait dans le HTML,
+ *  invisible a l'ecran, et invendable.
+ *
+ *  `translate` et non `transform` : les couvertures de la banniere portent
+ *  deja un `transform` qui les met en eventail. Les deux proprietes sont
+ *  distinctes en CSS moderne, donc l'apparition ne detruit pas l'eventail.
+ */
+
+html.js [data-reveal] {
+  opacity: 0;
+  translate: 0 36px;
+  transition:
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    translate 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0s);
+}
+
+html.js [data-reveal].is-visible {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* reset.css ramene deja toutes les durees a 0.01ms en mouvement reduit.
+   Ici on annule EN PLUS le decalage en cascade : sans cette regle, un
+   element garderait son attente de 640 ms avant d'apparaitre instantanement,
+   ce qui est exactement ce qu'une personne sensible au mouvement ne veut
+   pas, du contenu qui surgit sans prevenir. */
+@media (prefers-reduced-motion: reduce) {
+  html.js [data-reveal] {
+    transition-delay: 0s !important;
+  }
+}

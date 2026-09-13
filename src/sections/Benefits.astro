@@ -1,0 +1,61 @@
+---
+/* Chiffres cles, facon The Ordinary : le chiffre attire l'oeil, la phrase
+ *  en dessous explique pourquoi il compte. On n'affirme rien sans expliquer.
+ */
+import { getContent } from '../lib/theme.js';
+const content = await getContent();
+---
+
+<section class="section--l">
+  <div class="container">
+    <ul class="benefits">
+      {content.benefits.map((b) => (
+        <li class="benefit" data-reveal>
+          <span class="benefit__number">{b.chiffre}</span>
+          <h3 class="benefit__title">{b.titre}</h3>
+          <p class="benefit__text">{b.texte}</p>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style>
+  .benefits {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-10) var(--space-8);
+
+    @media (width >= 900px) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  .benefit {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* Le chiffre est le seul element autorise a quitter --text-m. */
+  .benefit__number {
+    font-family: var(--font-display);
+    font-weight: var(--font-display-weight);
+    font-size: var(--text-xl);
+    line-height: 1;
+    color: var(--color-accent);
+  }
+
+  .benefit__title {
+    font-family: var(--font-body);
+    font-size: var(--text-m);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0;
+  }
+
+  .benefit__text {
+    color: var(--color-text-muted);
+  }
+</style>

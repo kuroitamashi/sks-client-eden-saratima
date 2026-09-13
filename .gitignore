@@ -1,0 +1,21 @@
+# Dependances
+node_modules/
+
+# Sortie de build
+dist/
+.astro/
+
+# Variables d'environnement.
+# .env porte la cle SureCart SECRETE du marchand des qu'on branche une vraie
+# boutique. Elle ne doit JAMAIS partir sur GitHub, meme sur un depot prive :
+# un depot privé peut etre ouvert, transfere, ou partage plus tard, et une
+# cle poussee une fois reste dans l'historique.
+.env
+.env.*
+!.env.example
+# .env.production ne porte que l'URL publique et un interrupteur, aucun secret.
+!.env.production
+
+# Systeme
+.DS_Store
+Thumbs.db

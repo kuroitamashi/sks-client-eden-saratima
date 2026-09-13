@@ -1,0 +1,170 @@
+---
+/* La grille du catalogue complet, avec son filtre par rayon.
+ *
+ *  Tous les produits sont rendus dans le HTML, et le filtre ne fait que
+ *  cacher ceux qui ne correspondent pas. Deux consequences voulues :
+ *
+ *   - le catalogue entier est visible par Google et lisible sans JavaScript.
+ *     Un filtre qui irait chercher les produits au clic laisserait une page
+ *     vide aux moteurs de recherche ;
+ *   - filtrer ne recharge rien, donc c'est instantane meme en 3G.
+ *
+ *  Cette approche tient parce que le catalogue est court. Le declencheur
+ *  pour la revoir est ecrit : au-dela d'environ deux cents produits, le poids
+ *  du HTML devient le probleme, et il faudra paginer.
+ *
+ *  Le rayon choisi est aussi lu dans l'adresse (?rayon=maquillage) : c'est ce
+ *  qui fait marcher les liens << Voir tout >> des rails de l'accueil, et ce
+ *  qui rend un rayon partageable sur WhatsApp.
+ */
+import ProductCard from '../components/ProductCard.astro';
+import { getContent } from '../lib/theme.js';
+
+const { produits = [] } = Astro.props;
+const content = await getContent();
+
+// On ne montre que les rayons qui contiennent au moins un produit.
+const rayons = content.categories.filter((c) =>
+  produits.some((p) => p.metadata?.categorie === c.cle)
+);
+---
+
+<section class="section--m">
+  <div class="container">
+    <nav class="filtres" aria-label="Filtrer par rayon" data-reveal>
+      <button type="button" class="filtre" data-rayon="tous" aria-pressed="true">
+        {content.ui.tousLesRayons}
+      </button>
+      {rayons.map((rayon) => (
+        <button type="button" class="filtre" data-rayon={rayon.cle} aria-pressed="false">
+          {rayon.libelle}
+        </button>
+      ))}
+    </nav>
+
+    <p class="compte" id="compte" aria-live="polite">
+      {`${produits.length} ${content.ui.produitsAuCatalogue}`}
+    </p>
+
+    <ul class="grille" id="grille">
+      {produits.map((produit, i) => (
+        <li class="grille__item" data-rayon={produit.metadata?.categorie ?? ''} data-reveal>
+          <ProductCard product={produit} priorite={i < 4} />
+        </li>
+      ))}
+    </ul>
+
+    <p class="vide" id="vide" hidden>{content.ui.aucunResultat}</p>
+  </div>
+</section>
+
+<style>
+  .filtres {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-bottom: var(--space-8);
+  }
+
+  /* Le filtre actif s'affiche en aplat primaire. C'est une commande, pas un
+     bouton d'achat : la regle << jamais de couleur sur un bouton >> vise les
+     appels a l'action, et un etat selectionne doit se voir sans ambiguite. */
+  .filtre {
+    padding: var(--space-3) var(--space-5);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-button);
+    background: transparent;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--text-m);
+    line-height: 1.2;
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+
+    &:hover {
+      border-color: var(--color-text);
+    }
+
+    &[aria-pressed='true'] {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      color: var(--color-on-primary);
+    }
+  }
+
+  .compte {
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-8);
+  }
+
+  .grille {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-10) var(--space-6);
+
+    @media (width >= 700px) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    @media (width >= 1000px) {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+
+  /* Piege SKS deja rencontre : sans ce selecteur, le display: grid ou flex
+     pose sur l'element l'emporte sur l'attribut hidden, et l'element cache
+     reste visible. */
+  .grille__item[hidden] {
+    display: none;
+  }
+
+  .vide {
+    color: var(--color-text-muted);
+    padding-block: var(--space-10);
+  }
+</style>
+
+<script>
+  const boutons = document.querySelectorAll('.filtre');
+  const items = document.querySelectorAll('.grille__item');
+  const compte = document.getElementById('compte');
+  const vide = document.getElementById('vide');
+  const gabarit = compte?.textContent.trim().replace(/^\d+\s*/, '') ?? '';
+
+  function appliquer(rayon) {
+    let visibles = 0;
+
+    items.forEach((item) => {
+      const garde = rayon === 'tous' || item.dataset.rayon === rayon;
+      item.hidden = !garde;
+      if (garde) visibles += 1;
+    });
+
+    boutons.forEach((b) => {
+      b.setAttribute('aria-pressed', String(b.dataset.rayon === rayon));
+    });
+
+    if (compte) compte.textContent = `${visibles} ${gabarit}`;
+    if (vide) vide.hidden = visibles > 0;
+
+    /* replaceState et non pushState : filtrer n'est pas naviguer. Avec
+       pushState, revenir en arriere apres six filtres demanderait six appuis
+       avant de quitter la page. */
+    const url = new URL(window.location.href);
+    if (rayon === 'tous') url.searchParams.delete('rayon');
+    else url.searchParams.set('rayon', rayon);
+    history.replaceState(null, '', url);
+  }
+
+  boutons.forEach((b) => {
+    b.addEventListener('click', () => appliquer(b.dataset.rayon));
+  });
+
+  // Etat initial : le rayon demande dans l'adresse, s'il existe vraiment.
+  const demande = new URL(window.location.href).searchParams.get('rayon');
+  const connu = demande && [...boutons].some((b) => b.dataset.rayon === demande);
+  if (connu) appliquer(demande);
+</script>

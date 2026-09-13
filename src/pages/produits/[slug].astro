@@ -1,0 +1,686 @@
+---
+/* Fiche produit.
+ *
+ *  Deux sources cohabitent, et c'est volontaire :
+ *   - le commerce (nom, prix, images, contenance) vient de listProducts(),
+ *     donc de SureCart quand la boutique est branchee ;
+ *   - l'editorial (questions, reassurance, etiquettes) vient du contenu du
+ *     template, parce que SureCart ne stocke pas ces champs-la.
+ *
+ *  La texture, l'ingredient, le moment d'application, le conseil d'usage et
+ *  les teintes sont entre les deux : ils appartiennent au PRODUIT et
+ *  voyagent donc dans product.metadata, le dictionnaire libre que SureCart
+ *  expose sur chaque produit.
+ *
+ *  CE QUE LA FICHE PREND A SES DEUX REFERENCES :
+ *   - d'Aesop : la description courte AU-DESSUS du prix, le calme, et le
+ *     bloc << Va bien avec >> en bas ;
+ *   - de Fenty : les vignettes verticales a gauche de l'image, le badge
+ *     au-dessus du titre, et le nuancier de teintes.
+ *
+ *  CE QU'ELLE NE PREND PAS, ET LA RAISON :
+ *  Fenty affiche une note sur cinq et un nombre d'avis. Taaru n'en affiche
+ *  aucun, parce qu'inventer une note pour une boutique de demonstration
+ *  revient a livrer de faux avis a un marchand qui les publierait sans le
+ *  savoir. La section Avis existe et se remplit toute seule le jour ou il y
+ *  a de vrais retours (content.reviews.liste dans theme.config.js).
+ *
+ *  LE NUANCIER, ET POURQUOI LE BOUTON EST DESACTIVE AU DEPART.
+ *  Aucune teinte n'est preselectionnee. Une teinte choisie a la place de la
+ *  cliente, c'est un fond de teint qui arrive dans la mauvaise couleur et
+ *  un marchand qui reprend le colis. Tant qu'elle n'a pas clique, le bouton
+ *  dit << Choisir la teinte >> et n'ajoute rien. Le clic pose data-teinte
+ *  sur le bouton d'ajout, et le tiroir la range dans la ligne de panier.
+ */
+import Default from '../../layouts/Default.astro';
+import ProductMedia from '../../components/ProductMedia.astro';
+import ProductCard from '../../components/ProductCard.astro';
+import Presentation from '../../sections/Presentation.astro';
+import VaBienAvec from '../../sections/VaBienAvec.astro';
+import Faq from '../../sections/Faq.astro';
+import Reviews from '../../sections/Reviews.astro';
+import Reassurance from '../../sections/Reassurance.astro';
+import { getTheme, getContent } from '../../lib/theme.js';
+import { listProducts } from '../../lib/products.js';
+import { formatMoney } from '../../lib/format.js';
+
+export async function getStaticPaths() {
+  const produits = await listProducts();
+  return produits.map((product) => ({
+    params: { slug: product.slug },
+    props: { product, tous: produits },
+  }));
+}
+
+const { product, tous } = Astro.props;
+const theme = await getTheme();
+const content = await getContent();
+
+const meta = product.metadata ?? {};
+const rayon = content.categories.find((c) => c.cle === meta.categorie) ?? null;
+const teintes = meta.teintes ?? [];
+const images = product.images ?? [];
+
+/* Les produits suggeres, facon << Suggested partners >> d'Aesop. Ils sont
+   nommes un par un dans metadata.vaBienAvec, et non deduits du rayon : la
+   creme va avec le serum, pas avec les six autres soins du visage. */
+const compagnons = (meta.vaBienAvec ?? [])
+  .map((slug) => tous.find((p) => p.slug === slug))
+  .filter(Boolean);
+
+/* Les produits du meme rayon, sauf celui qu'on lit et ceux deja suggeres
+   au-dessus. Quatre au maximum : une suggestion qui remplit un ecran entier
+   n'est plus une suggestion, c'est un deuxieme catalogue au milieu de la
+   fiche. */
+const memeRayon = tous
+  .filter(
+    (p) =>
+      p.slug !== product.slug &&
+      p.metadata?.categorie === meta.categorie &&
+      !compagnons.some((c) => c.slug === p.slug)
+  )
+  .slice(0, 4);
+---
+
+<Default title={product.name} description={product.subtitle}>
+  <section class="section--m">
+    <div class="container">
+      <nav class="crumbs" aria-label="Fil d'Ariane">
+        <a href="/" class="link">Accueil</a>
+        <span aria-hidden="true">/</span>
+        <a href="/produits/" class="link">{content.cataloguePage.titre}</a>
+        {rayon && (
+          <>
+            <span aria-hidden="true">/</span>
+            <a href={`/produits/?rayon=${rayon.cle}`} class="link">{rayon.libelle}</a>
+          </>
+        )}
+      </nav>
+
+      <div class="produit">
+        {/* La galerie. Les vignettes sont a GAUCHE de l'image sur ordinateur,
+            comme chez Fenty, et passent SOUS elle sur telephone : a gauche
+            sur un ecran de 360 px, elles mangeraient un tiers de la largeur
+            de l'image principale.
+
+            Elles n'apparaissent qu'a partir de deux images. Avec une seule,
+            une colonne de vignettes montrant la meme chose ne renseigne
+            personne et decale l'image sans raison. */}
+        <div class="produit__galerie" data-reveal>
+          {images.length > 1 && (
+            <div class="vignettes" role="group" aria-label="Images du produit">
+              {images.map((src, i) => (
+                <button
+                  type="button"
+                  class="vignette"
+                  data-image={i}
+                  aria-pressed={i === 0 ? 'true' : 'false'}
+                  aria-label={`Voir l'image ${i + 1} sur ${images.length}`}
+                >
+                  <img src={src} alt="" width="120" height="120" loading="lazy" decoding="async" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div class="produit__principale" id="galerie-principale">
+            {images.length > 0 ? (
+              images.map((src, i) => (
+                <div class="produit__vue" data-vue={i} hidden={i !== 0}>
+                  <ProductMedia product={product} index={i} ratio="portrait" priorite={i === 0} />
+                </div>
+              ))
+            ) : (
+              <ProductMedia product={product} ratio="portrait" priorite={true} />
+            )}
+          </div>
+        </div>
+
+        <div class="produit__corps" data-reveal>
+          {meta.badge && <p class="produit__badge">{meta.badge}</p>}
+          {rayon && <p class="eyebrow">{rayon.libelle}</p>}
+          <h1 class="produit__titre">{product.name}</h1>
+
+          {/* La description courte est AU-DESSUS du prix, comme chez Aesop :
+              on dit ce que c'est avant de dire combien ca coute. */}
+          <p class="lead produit__soustitre">{product.subtitle}</p>
+
+          <p class="produit__prix">
+            <span>{formatMoney(product.price, theme.commerce)}</span>
+            {product.comparePrice && (
+              <s class="produit__compare">{formatMoney(product.comparePrice, theme.commerce)}</s>
+            )}
+          </p>
+
+          {content.targets?.length > 0 && (
+            <ul class="targets">
+              {content.targets.map((mot) => <li class="targets__item">{mot}</li>)}
+            </ul>
+          )}
+
+          {teintes.length > 0 && (
+            <div class="nuancier" id="nuancier">
+              <p class="nuancier__titre">
+                <span>{content.ui.teinte}</span>
+                <span class="nuancier__choix" id="nuancier-choix"></span>
+              </p>
+
+              <div class="nuancier__grille" role="group" aria-label={content.ui.teinte}>
+                {teintes.map((t) => (
+                  <button
+                    type="button"
+                    class="teinte"
+                    data-teinte={t.nom}
+                    style={`--teinte: ${t.hex}`}
+                    aria-pressed="false"
+                    aria-label={t.nom}
+                    title={t.nom}
+                  ></button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {product.inStock && <p class="produit__dispo">{content.ui.enStock}</p>}
+
+          <div class="produit__achat">
+            {/* Le bouton nait desactive quand le produit a des teintes, et
+                le script le reveille au premier clic sur un carre. Sans
+                JavaScript, il reste desactive et la cliente passe par
+                WhatsApp : c'est moins pratique, mais elle ne recoit jamais
+                une teinte qu'elle n'a pas choisie. */}
+            <button
+              class="btn btn--primary btn--full"
+              id="add-to-cart"
+              data-add={product.id}
+              data-qty="1"
+              data-exige-teinte={teintes.length > 0 ? 'true' : 'false'}
+              data-libelle-ajouter={content.ui.ajouterAuPanier}
+              disabled={!product.inStock || teintes.length > 0}
+            >
+              {!product.inStock
+                ? content.ui.rupture
+                : teintes.length > 0
+                  ? content.ui.choisirTeinte
+                  : content.ui.ajouterAuPanier}
+            </button>
+          </div>
+
+          {/* La reassurance est ICI, sous le bouton, et pas seulement en bas
+              de page : c'est au moment de cliquer qu'on se demande comment
+              on paie et quand on recoit. */}
+          {content.buyReassurance?.length > 0 && (
+            <ul class="buy-reassurance">
+              {content.buyReassurance.map((item) => (
+                <li class="buy-reassurance__item">
+                  <span class="buy-reassurance__title">{item.titre}</span>
+                  <span class="buy-reassurance__text">{item.texte}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p class="produit__description">{product.description}</p>
+
+          {/* La fiche technique. Quatre lignes, pas onze : la texture, ce
+              qu'il y a dedans, la contenance et le moment d'application sont
+              les seules choses qu'on veut verifier avant de payer. */}
+          <dl class="fiche">
+            {meta.texture && (
+              <div class="fiche__ligne">
+                <dt>Texture</dt>
+                <dd>{meta.texture}</dd>
+              </div>
+            )}
+            {meta.ingredient && (
+              <div class="fiche__ligne">
+                <dt>Ingrédient principal</dt>
+                <dd>{meta.ingredient}</dd>
+              </div>
+            )}
+            {product.format && (
+              <div class="fiche__ligne">
+                <dt>{content.ui.contenance}</dt>
+                <dd>{product.format}</dd>
+              </div>
+            )}
+            {meta.moment && (
+              <div class="fiche__ligne">
+                <dt>Quand l'utiliser</dt>
+                <dd>{meta.moment}</dd>
+              </div>
+            )}
+          </dl>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <Presentation product={product} />
+
+  <VaBienAvec produits={compagnons} />
+
+  {memeRayon.length > 0 && rayon && (
+    <section class="section--l">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <h2 class="suite__titre">{`Dans le rayon ${rayon.libelle}`}</h2>
+        </div>
+        <ul class="suite">
+          {memeRayon.map((autre) => (
+            <li data-reveal><ProductCard product={autre} /></li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )}
+
+  <Faq />
+  <Reviews />
+  <Reassurance />
+
+  {/* Barre d'achat collee en bas, sur telephone uniquement. Sur un ecran de
+      telephone, le bouton d'achat sort du champ des qu'on lit la
+      description, et il faut remonter pour commander. */}
+  <div class="buybar" id="buybar" data-state="hidden" aria-hidden="true">
+    <div class="container buybar__inner">
+      <div class="buybar__info">
+        <p class="buybar__name">{product.name}</p>
+        <p class="buybar__price">{formatMoney(product.price, theme.commerce)}</p>
+      </div>
+      <button
+        class="btn btn--primary buybar__btn"
+        id="buybar-add"
+        data-add={product.id}
+        data-qty="1"
+        data-exige-teinte={teintes.length > 0 ? 'true' : 'false'}
+        data-libelle-ajouter={content.ui.ajouterAuPanier}
+        disabled={!product.inStock || teintes.length > 0}
+        tabindex="-1"
+      >
+        {!product.inStock
+          ? content.ui.rupture
+          : teintes.length > 0
+            ? content.ui.choisirTeinte
+            : content.ui.ajouterAuPanier}
+      </button>
+    </div>
+  </div>
+</Default>
+
+<style>
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-10);
+  }
+
+  .produit {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-12);
+
+    @media (width >= 900px) {
+      grid-template-columns: 1fr 0.9fr;
+      gap: var(--space-16);
+      align-items: start;
+    }
+  }
+
+  /* Vignettes SOUS l'image sur telephone, A GAUCHE sur ordinateur. */
+  .produit__galerie {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: var(--space-4);
+
+    @media (width >= 900px) {
+      flex-direction: row;
+      position: sticky;
+      top: calc(var(--header-height) + var(--space-6));
+    }
+  }
+
+  .produit__principale {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .vignettes {
+    display: flex;
+    flex-direction: row;
+    gap: var(--space-3);
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+
+    @media (width >= 900px) {
+      flex-direction: column;
+      overflow-x: visible;
+      flex-shrink: 0;
+    }
+  }
+
+  /* La vignette active se signale par une bordure, et c'est l'une des rares
+     bordures du template : la regle SKS des bordures strategiques autorise
+     celle qui porte un ETAT, elle interdit la decoration. */
+  .vignette {
+    width: 72px;
+    height: 72px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-image);
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--color-surface);
+
+    & img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    &[aria-pressed='true'] {
+      border-color: var(--color-text);
+    }
+  }
+
+  /* Piege SKS deja rencontre : sans ce selecteur, le display du bloc
+     l'emporte sur l'attribut hidden et la vue masquee reste visible. */
+  .produit__vue[hidden] {
+    display: none;
+  }
+
+  .produit__badge {
+    display: inline-block;
+    padding: var(--space-1) var(--space-3);
+    margin-bottom: var(--space-4);
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    border-radius: var(--radius-button);
+    line-height: 1.4;
+  }
+
+  .produit__titre {
+    font-size: var(--h2);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-tight);
+    margin-block: var(--space-3) var(--space-2);
+  }
+
+  .produit__soustitre {
+    margin-top: var(--space-5);
+  }
+
+  .produit__prix {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+    font-weight: var(--weight-medium);
+  }
+
+  .produit__compare {
+    color: var(--color-text-muted);
+    font-weight: var(--weight-regular);
+  }
+
+  /* Etiquettes : ce que le produit est. Bordure et non aplat colore. */
+  .targets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-6);
+  }
+
+  .targets__item {
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-button);
+    color: var(--color-text-muted);
+    line-height: 1.2;
+  }
+
+  /* Le nuancier */
+  .nuancier {
+    margin-top: var(--space-8);
+  }
+
+  .nuancier__titre {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-4);
+    font-weight: var(--weight-medium);
+  }
+
+  .nuancier__choix {
+    color: var(--color-text-muted);
+    font-weight: var(--weight-regular);
+  }
+
+  .nuancier__grille {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  /* Le carre de teinte porte sa couleur en variable et non en classe : les
+     teintes viennent du catalogue, elles ne peuvent pas etre connues du CSS.
+
+     Le cadre de selection est un contour EXTERIEUR (outline avec offset) et
+     non une bordure : une bordure posee sur le carre mange sa couleur, et
+     sur les teintes les plus foncees on ne voyait plus laquelle etait
+     choisie. */
+  .teinte {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid color-mix(in oklab, var(--color-text) 12%, transparent);
+    border-radius: var(--radius-image);
+    background-color: var(--teinte);
+    cursor: pointer;
+    transition: outline-color var(--duration-fast) var(--ease-out);
+    outline: 2px solid transparent;
+    outline-offset: 3px;
+
+    &[aria-pressed='true'] {
+      outline-color: var(--color-text);
+    }
+
+    &:focus-visible {
+      outline-color: var(--color-primary);
+    }
+  }
+
+  .produit__dispo {
+    margin-top: var(--space-8);
+    color: var(--color-accent);
+  }
+
+  .produit__achat {
+    margin-top: var(--space-4);
+  }
+
+  .buy-reassurance {
+    display: flex;
+    flex-direction: column;
+    margin-top: var(--space-8);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .buy-reassurance__item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    padding-block: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .buy-reassurance__title {
+    font-weight: var(--weight-medium);
+  }
+
+  .buy-reassurance__text {
+    color: var(--color-text-muted);
+  }
+
+  .produit__description {
+    margin-top: var(--space-8);
+    color: var(--color-text-muted);
+  }
+
+  .fiche {
+    margin-top: var(--space-8);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .fiche__ligne {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-6);
+    padding-block: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .fiche__ligne dt {
+    color: var(--color-text-muted);
+  }
+
+  .suite__titre {
+    font-size: var(--h3);
+  }
+
+  .suite {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-10) var(--space-6);
+
+    @media (width >= 700px) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  /* Barre d'achat mobile */
+  .buybar {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 160;
+    background: var(--color-bg);
+    border-top: 1px solid var(--color-border);
+    padding-block: var(--space-3);
+    transform: translateY(100%);
+    transition: transform var(--duration-base) var(--ease-out);
+
+    @media (width >= 900px) {
+      display: none;
+    }
+  }
+
+  .buybar[data-state='shown'] {
+    transform: translateY(0);
+  }
+
+  .buybar__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .buybar__info {
+    min-width: 0;
+  }
+
+  .buybar__name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--color-text-muted);
+  }
+
+  .buybar__price {
+    font-weight: var(--weight-medium);
+  }
+
+  .buybar__btn {
+    flex-shrink: 0;
+    padding-inline: var(--space-6);
+  }
+</style>
+
+<script>
+  /* 1. La galerie. Les vignettes montrent une vue et cachent les autres.
+     Rien n'est charge au clic : les vues sont toutes dans le HTML, cachees.
+     Sur une fiche a quatre images, c'est quelques dizaines de kilo-octets,
+     et cela evite un aller-retour reseau en 3G a chaque vignette. */
+  const vignettes = document.querySelectorAll('.vignette');
+  const vues = document.querySelectorAll('.produit__vue');
+
+  vignettes.forEach((vignette) => {
+    vignette.addEventListener('click', () => {
+      const n = vignette.dataset.image;
+      vues.forEach((vue) => { vue.hidden = vue.dataset.vue !== n; });
+      vignettes.forEach((v) => {
+        v.setAttribute('aria-pressed', String(v.dataset.image === n));
+      });
+    });
+  });
+
+  /* 2. Le nuancier.
+     Le clic pose la teinte sur LES DEUX boutons d'ajout, celui de la page et
+     celui de la barre mobile. Un seul des deux mis a jour, et la cliente qui
+     commande depuis la barre du bas envoie une commande sans teinte. */
+  const carres = document.querySelectorAll('.teinte');
+  const choix = document.getElementById('nuancier-choix');
+  const boutons = [
+    document.getElementById('add-to-cart'),
+    document.getElementById('buybar-add'),
+  ].filter(Boolean);
+
+  if (carres.length) {
+    const libelleAjouter = document.getElementById('add-to-cart')?.dataset.libelleAjouter;
+
+    carres.forEach((carre) => {
+      carre.addEventListener('click', () => {
+        const nom = carre.dataset.teinte;
+
+        carres.forEach((c) => {
+          c.setAttribute('aria-pressed', String(c === carre));
+        });
+
+        if (choix) choix.textContent = nom;
+
+        boutons.forEach((btn) => {
+          btn.dataset.teinte = nom;
+          btn.disabled = false;
+          if (libelleAjouter) btn.textContent = libelleAjouter;
+        });
+      });
+    });
+  }
+
+  /* 3. La barre d'achat mobile.
+     On observe le bouton de la page plutot qu'une hauteur de defilement : le
+     seuil suit alors la longueur reelle de la fiche, quel que soit l'ecran. */
+  const bar = document.getElementById('buybar');
+  const barBtn = document.getElementById('buybar-add');
+  const zone = document.querySelector('.produit__achat');
+
+  if (bar && zone && 'IntersectionObserver' in window) {
+    new IntersectionObserver(([entry]) => {
+      const montre = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+      bar.dataset.state = montre ? 'shown' : 'hidden';
+      bar.setAttribute('aria-hidden', String(!montre));
+      // Le bouton n'est atteignable au clavier que lorsqu'il est visible.
+      barBtn?.setAttribute('tabindex', montre ? '0' : '-1');
+      // Le bouton WhatsApp remonte pour ne pas passer sous la barre.
+      document.documentElement.style.setProperty('--float-offset', montre ? '68px' : '0px');
+    }).observe(zone);
+  }
+</script>

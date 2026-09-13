@@ -1,0 +1,841 @@
+{
+  "$comment": "La liste de courses de ce template. Le dashboard la lit et dessine l'ecran de personnalisation tout seul : une ligne ici = un champ a l'ecran. Ajouter un champ au template, c'est ajouter une ligne ici, jamais du code dans le dashboard. L'apparence (couleurs, typo, formes) n'est PAS decrite ici : elle suit le contrat partage, identique pour tous les templates. Le catalogue non plus : noms, prix, teintes et images viennent de SureCart, pas de cet ecran.",
+  "id": "taaru",
+  "nom": "Taaru",
+  "secteur": "beaute",
+  "description": "Boutique de soin, maquillage, corps et cheveux. Accueil avec banniere en trois volets et rangees par rayon, page catalogue filtrable, fiche produit avec nuancier de teintes et conseil d'usage, page de commande avec paiement a la livraison ou mobile money, panier, bouton WhatsApp flottant, barre d'achat mobile.",
+  "version": "1.0.0",
+  "contratTheme": "1.0.0",
+  "$note-teintes": "Les teintes ne sont PAS reglables ici : elles vivent sur chaque produit (metadata.teintes), comme le prix et la contenance. Ce n'est pas une variante SureCart, le modele produit du projet n'en a pas : c'est une precision qui voyage avec la ligne de panier et qui part dans la commande.",
+  "$note-demo": "theme.commerce.demoMode n'apparait pas dans cet ecran, et c'est volontaire : c'est un reglage de mise en ligne, pas un choix editorial. Tant qu'il vaut true, la page de commande n'envoie rien. Il se change au moment du deploiement, en meme temps que le numero WhatsApp.",
+  "groupes": [
+    {
+      "cle": "announcement",
+      "libelle": "Bandeau d'annonce",
+      "aide": "La bande fine tout en haut du site.",
+      "champs": [
+        {
+          "cle": "actif",
+          "libelle": "Afficher le bandeau",
+          "type": "oui-non",
+          "defaut": true
+        },
+        {
+          "cle": "texte",
+          "libelle": "Texte du bandeau",
+          "type": "texte",
+          "max": 90
+        }
+      ]
+    },
+    {
+      "cle": "nav",
+      "libelle": "Menu de navigation",
+      "type": "liste",
+      "aide": "Les liens de la barre du haut.",
+      "min": 0,
+      "max": 6,
+      "champs": [
+        {
+          "cle": "libelle",
+          "libelle": "Libelle",
+          "type": "texte",
+          "max": 24
+        },
+        {
+          "cle": "href",
+          "libelle": "Destination",
+          "type": "lien"
+        }
+      ]
+    },
+    {
+      "cle": "categories",
+      "libelle": "Rayons",
+      "type": "liste",
+      "aide": "Les rayons de la boutique. La cle doit correspondre exactement a la categorie renseignee sur chaque produit. Le libelle est ce que voient tes clientes : le renommer ici le change partout, sans toucher aux produits.",
+      "min": 1,
+      "max": 12,
+      "champs": [
+        {
+          "cle": "cle",
+          "libelle": "Cle technique",
+          "type": "texte",
+          "max": 40
+        },
+        {
+          "cle": "libelle",
+          "libelle": "Nom affiche",
+          "type": "texte",
+          "max": 40
+        },
+        {
+          "cle": "surAccueil",
+          "libelle": "Montrer sur l'accueil",
+          "type": "oui-non",
+          "defaut": false
+        }
+      ]
+    },
+    {
+      "cle": "hero",
+      "libelle": "Banniere d'accueil",
+      "aide": "La banniere defile en plusieurs volets. Il n'y a AUCUNE image a televerser : chaque volet est un aplat pris dans tes couleurs. Un seul volet, et la banniere ne defile plus.",
+      "champs": [
+        {
+          "cle": "volets",
+          "libelle": "Les volets",
+          "type": "liste",
+          "min": 1,
+          "max": 4,
+          "champs": [
+            {
+              "cle": "fond",
+              "libelle": "Couleur du volet",
+              "type": "choix",
+              "options": [
+                {
+                  "valeur": "surface",
+                  "libelle": "Clair"
+                },
+                {
+                  "valeur": "primary",
+                  "libelle": "Fonce"
+                },
+                {
+                  "valeur": "accent",
+                  "libelle": "Couleur d'accent"
+                }
+              ],
+              "defaut": "surface"
+            },
+            {
+              "cle": "surtitre",
+              "libelle": "Surtitre",
+              "type": "texte",
+              "max": 30
+            },
+            {
+              "cle": "titre",
+              "libelle": "Titre",
+              "type": "texte-long",
+              "max": 60
+            },
+            {
+              "cle": "texte",
+              "libelle": "Texte",
+              "type": "texte-long",
+              "max": 240
+            },
+            {
+              "cle": "cta",
+              "libelle": "Libelle du bouton",
+              "type": "texte",
+              "max": 28
+            },
+            {
+              "cle": "href",
+              "libelle": "Destination du bouton",
+              "type": "lien"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cle": "benefits",
+      "libelle": "Chiffres cles",
+      "type": "liste",
+      "aide": "Les quelques chiffres qui expliquent la boutique d'un coup d'oeil.",
+      "min": 2,
+      "max": 4,
+      "champs": [
+        {
+          "cle": "chiffre",
+          "libelle": "Chiffre",
+          "type": "texte",
+          "max": 10
+        },
+        {
+          "cle": "titre",
+          "libelle": "Titre",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "texte",
+          "libelle": "Explication",
+          "type": "texte-long",
+          "max": 140
+        }
+      ]
+    },
+    {
+      "cle": "productFocus",
+      "libelle": "Le rituel du moment",
+      "aide": "Le bloc de mise en avant sur l'accueil. Le produit montre est celui marque comme mis en avant dans ton catalogue : ici, tu ecris seulement les mots autour.",
+      "champs": [
+        {
+          "cle": "surtitre",
+          "libelle": "Surtitre",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "titre",
+          "libelle": "Titre",
+          "type": "texte",
+          "max": 60
+        },
+        {
+          "cle": "texte",
+          "libelle": "Texte",
+          "type": "texte-long",
+          "max": 280
+        },
+        {
+          "cle": "points",
+          "libelle": "Arguments",
+          "type": "liste-texte",
+          "min": 0,
+          "max": 6,
+          "max-caracteres": 90
+        },
+        {
+          "cle": "lienFiche",
+          "libelle": "Libelle du bouton",
+          "type": "texte",
+          "max": 28
+        }
+      ]
+    },
+    {
+      "cle": "catalogue",
+      "libelle": "Rayons sur l'accueil",
+      "aide": "L'en-tete des rangees de produits sur la page d'accueil.",
+      "champs": [
+        {
+          "cle": "surtitre",
+          "libelle": "Surtitre",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "titre",
+          "libelle": "Titre",
+          "type": "texte",
+          "max": 60
+        },
+        {
+          "cle": "texte",
+          "libelle": "Texte",
+          "type": "texte-long",
+          "max": 200
+        },
+        {
+          "cle": "voirTout",
+          "libelle": "Libelle du lien Voir tout",
+          "type": "texte",
+          "max": 20
+        }
+      ]
+    },
+    {
+      "cle": "cataloguePage",
+      "libelle": "Page catalogue",
+      "aide": "L'en-tete de la page qui liste tous les produits.",
+      "champs": [
+        {
+          "cle": "surtitre",
+          "libelle": "Surtitre",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "titre",
+          "libelle": "Titre",
+          "type": "texte",
+          "max": 60
+        },
+        {
+          "cle": "texte",
+          "libelle": "Texte",
+          "type": "texte-long",
+          "max": 200
+        }
+      ]
+    },
+    {
+      "cle": "presentation",
+      "libelle": "Conseil d'usage",
+      "aide": "L'en-tete du bloc de conseil sur la fiche d'un produit. Le conseil lui-meme s'ecrit sur chaque produit, pas ici. Il decrit un GESTE : quand appliquer, sur quelle peau, ce qu'il ne faut pas faire. Jamais un resultat.",
+      "champs": [
+        {
+          "cle": "surtitre",
+          "libelle": "Surtitre",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "titre",
+          "libelle": "Titre",
+          "type": "texte",
+          "max": 60
+        },
+        {
+          "cle": "texte",
+          "libelle": "Texte",
+          "type": "texte-long",
+          "max": 200
+        }
+      ]
+    },
+    {
+      "cle": "targets",
+      "libelle": "Etiquettes de la fiche produit",
+      "type": "liste-texte",
+      "aide": "Les petites etiquettes sous le titre du produit. Elles disent en trois secondes ce qu'on achete.",
+      "min": 0,
+      "max": 6,
+      "max-caracteres": 26
+    },
+    {
+      "cle": "buyReassurance",
+      "libelle": "Reassurance sous le bouton d'achat",
+      "type": "liste",
+      "aide": "S'affiche juste sous le bouton d'ajout au panier, la ou on se demande comment on paie et quand on est livre.",
+      "min": 0,
+      "max": 4,
+      "champs": [
+        {
+          "cle": "titre",
+          "libelle": "Titre",
+          "type": "texte",
+          "max": 34
+        },
+        {
+          "cle": "texte",
+          "libelle": "Texte",
+          "type": "texte",
+          "max": 70
+        }
+      ]
+    },
+    {
+      "cle": "commande",
+      "libelle": "Page de commande",
+      "aide": "Le tunnel de commande : contact, livraison, paiement. Le bandeau de demonstration ne s'affiche que tant que la boutique n'est pas ouverte pour de vrai.",
+      "champs": [
+        {
+          "cle": "surtitre",
+          "libelle": "Surtitre",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "titre",
+          "libelle": "Titre",
+          "type": "texte",
+          "max": 60
+        },
+        {
+          "cle": "contactTitre",
+          "libelle": "Titre de l'etape 1",
+          "type": "texte",
+          "max": 40
+        },
+        {
+          "cle": "livraisonTitre",
+          "libelle": "Titre de l'etape 2",
+          "type": "texte",
+          "max": 40
+        },
+        {
+          "cle": "paiementTitre",
+          "libelle": "Titre de l'etape 3",
+          "type": "texte",
+          "max": 40
+        },
+        {
+          "cle": "paiementTexte",
+          "libelle": "Phrase sous le titre Paiement",
+          "type": "texte",
+          "max": 90
+        },
+        {
+          "cle": "zones",
+          "libelle": "Zones de livraison et tarifs",
+          "type": "liste",
+          "aide": "Une ligne par zone. Le tarif est un montant en FCFA. Laisse le tarif vide pour une zone dont le prix se fixe au cas par cas : le total affichera << A convenir >>.",
+          "min": 1,
+          "max": 30,
+          "champs": [
+            {
+              "cle": "cle",
+              "libelle": "Cle technique",
+              "type": "texte",
+              "max": 40
+            },
+            {
+              "cle": "libelle",
+              "libelle": "Nom de la zone",
+              "type": "texte",
+              "max": 60
+            },
+            {
+              "cle": "tarif",
+              "libelle": "Tarif en FCFA",
+              "type": "montant"
+            },
+            {
+              "cle": "delai",
+              "libelle": "Delai annonce",
+              "type": "texte",
+              "max": 30
+            }
+          ]
+        },
+        {
+          "cle": "modes",
+          "libelle": "Modes de paiement",
+          "type": "liste",
+          "aide": "Aucun de ces modes n'encaisse : le paiement en ligne n'est pas branche. Le mode choisi part avec la commande, et tu confirmes avec ta cliente. L'explication ne s'affiche que sous l'option selectionnee.",
+          "min": 1,
+          "max": 3,
+          "champs": [
+            {
+              "cle": "cle",
+              "libelle": "Cle technique",
+              "type": "texte",
+              "max": 20
+            },
+            {
+              "cle": "libelle",
+              "libelle": "Nom affiche",
+              "type": "texte",
+              "max": 40
+            },
+            {
+              "cle": "aide",
+              "libelle": "Explication",
+              "type": "texte-long",
+              "max": 180
+            },
+            {
+              "cle": "operateurs",
+              "libelle": "Operateurs affiches",
+              "type": "liste",
+              "aide": "Les pastilles sous l'option, par exemple Wave et Orange Money. Laisse le logo vide tant que tu n'as pas l'image : la pastille affiche alors le nom.",
+              "min": 0,
+              "max": 8,
+              "champs": [
+                {
+                  "cle": "nom",
+                  "libelle": "Nom",
+                  "type": "texte",
+                  "max": 24
+                },
+                {
+                  "cle": "couleur",
+                  "libelle": "Couleur du filet",
+                  "type": "couleur"
+                },
+                {
+                  "cle": "logo",
+                  "libelle": "Logo",
+                  "type": "image"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "cle": "codes",
+          "libelle": "Codes de reduction",
+          "type": "liste",
+          "aide": "ATTENTION : la verification se fait dans le navigateur, puisqu'un site statique n'a pas de serveur. Quelqu'un qui lit le code source de la page voit la liste. Ce n'est donc pas un prix garanti, c'est une remise annoncee dans la commande, que tu confirmes avant d'expedier.",
+          "min": 0,
+          "max": 20,
+          "champs": [
+            {
+              "cle": "code",
+              "libelle": "Code a saisir",
+              "type": "texte",
+              "max": 24
+            },
+            {
+              "cle": "type",
+              "libelle": "Type de remise",
+              "type": "choix",
+              "options": [
+                {
+                  "valeur": "pourcent",
+                  "libelle": "Pourcentage du sous-total"
+                },
+                {
+                  "valeur": "montant",
+                  "libelle": "Montant fixe en FCFA"
+                },
+                {
+                  "valeur": "livraison",
+                  "libelle": "Livraison offerte"
+                }
+              ]
+            },
+            {
+              "cle": "valeur",
+              "libelle": "Valeur",
+              "type": "montant"
+            },
+            {
+              "cle": "libelle",
+              "libelle": "Ce que voit la cliente",
+              "type": "texte",
+              "max": 40
+            }
+          ]
+        },
+        {
+          "cle": "avantages",
+          "libelle": "Arguments du recapitulatif",
+          "type": "liste",
+          "aide": "Les lignes a icone sous le total, dans la colonne sombre.",
+          "min": 0,
+          "max": 4,
+          "champs": [
+            {
+              "cle": "icone",
+              "libelle": "Icone",
+              "type": "choix",
+              "options": [
+                {
+                  "valeur": "livraison",
+                  "libelle": "Camion"
+                },
+                {
+                  "valeur": "paiement",
+                  "libelle": "Carte"
+                },
+                {
+                  "valeur": "retour",
+                  "libelle": "Retour"
+                }
+              ]
+            },
+            {
+              "cle": "titre",
+              "libelle": "Titre",
+              "type": "texte",
+              "max": 34
+            },
+            {
+              "cle": "texte",
+              "libelle": "Texte",
+              "type": "texte-long",
+              "max": 120
+            }
+          ]
+        },
+        {
+          "cle": "recapTitre",
+          "libelle": "Titre du recapitulatif",
+          "type": "texte",
+          "max": 40
+        },
+        {
+          "cle": "payer",
+          "libelle": "Libelle du bouton de paiement",
+          "type": "texte",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "cle": "reviews",
+      "libelle": "Avis de clientes",
+      "aide": "Laisse la liste vide tant que tu n'as pas de vrais retours : la section disparait d'elle-meme. Inventer des avis sur une boutique en ligne, c'est publier de faux avis.",
+      "champs": [
+        {
+          "cle": "surtitre",
+          "libelle": "Surtitre",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "titre",
+          "libelle": "Titre",
+          "type": "texte",
+          "max": 60
+        },
+        {
+          "cle": "liste",
+          "libelle": "Les avis",
+          "type": "liste",
+          "min": 0,
+          "max": 12,
+          "champs": [
+            {
+              "cle": "nom",
+              "libelle": "Prenom",
+              "type": "texte",
+              "max": 30
+            },
+            {
+              "cle": "texte",
+              "libelle": "Avis",
+              "type": "texte-long",
+              "max": 260
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cle": "faq",
+      "libelle": "Questions frequentes",
+      "champs": [
+        {
+          "cle": "surtitre",
+          "libelle": "Surtitre",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "titre",
+          "libelle": "Titre",
+          "type": "texte",
+          "max": 60
+        },
+        {
+          "cle": "liste",
+          "libelle": "Les questions",
+          "type": "liste",
+          "min": 0,
+          "max": 12,
+          "champs": [
+            {
+              "cle": "question",
+              "libelle": "Question",
+              "type": "texte",
+              "max": 110
+            },
+            {
+              "cle": "reponse",
+              "libelle": "Reponse",
+              "type": "texte-long",
+              "max": 600
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cle": "reassurance",
+      "libelle": "Bandeau de reassurance",
+      "type": "liste",
+      "aide": "La bande de quatre promesses, en bas des pages.",
+      "min": 0,
+      "max": 4,
+      "champs": [
+        {
+          "cle": "titre",
+          "libelle": "Titre",
+          "type": "texte",
+          "max": 34
+        },
+        {
+          "cle": "texte",
+          "libelle": "Texte",
+          "type": "texte",
+          "max": 70
+        }
+      ]
+    },
+    {
+      "cle": "footer",
+      "libelle": "Pied de page",
+      "champs": [
+        {
+          "cle": "texte",
+          "libelle": "Phrase de presentation",
+          "type": "texte-long",
+          "max": 200
+        },
+        {
+          "cle": "colonnes",
+          "libelle": "Colonnes de liens",
+          "type": "liste",
+          "min": 0,
+          "max": 3,
+          "champs": [
+            {
+              "cle": "titre",
+              "libelle": "Titre de la colonne",
+              "type": "texte",
+              "max": 26
+            },
+            {
+              "cle": "liens",
+              "libelle": "Liens",
+              "type": "liste",
+              "min": 0,
+              "max": 6,
+              "champs": [
+                {
+                  "cle": "libelle",
+                  "libelle": "Libelle",
+                  "type": "texte",
+                  "max": 34
+                },
+                {
+                  "cle": "href",
+                  "libelle": "Destination",
+                  "type": "lien"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "cle": "mentions",
+          "libelle": "Mention du bas",
+          "type": "texte",
+          "max": 90
+        }
+      ]
+    },
+    {
+      "cle": "ui",
+      "libelle": "Textes des boutons",
+      "aide": "Les mots de l'interface. Ils ne sont pas du contenu editorial, mais ils s'affichent, donc tu peux les changer.",
+      "champs": [
+        {
+          "cle": "ajouterAuPanier",
+          "libelle": "Ajouter au panier",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "ajouterCourt",
+          "libelle": "Ajouter, version courte sur les cartes",
+          "type": "texte",
+          "max": 14
+        },
+        {
+          "cle": "choisirTeinte",
+          "libelle": "Choisir la teinte",
+          "type": "texte",
+          "max": 24
+        },
+        {
+          "cle": "panier",
+          "libelle": "Panier",
+          "type": "texte",
+          "max": 20
+        },
+        {
+          "cle": "panierVide",
+          "libelle": "Panier vide",
+          "type": "texte",
+          "max": 60
+        },
+        {
+          "cle": "continuerAchats",
+          "libelle": "Continuer mes achats",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "commander",
+          "libelle": "Commander",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "sousTotal",
+          "libelle": "Sous-total",
+          "type": "texte",
+          "max": 20
+        },
+        {
+          "cle": "quantite",
+          "libelle": "Quantite",
+          "type": "texte",
+          "max": 20
+        },
+        {
+          "cle": "livraisonCalculee",
+          "libelle": "Phrase sous le sous-total",
+          "type": "texte",
+          "max": 90
+        },
+        {
+          "cle": "rupture",
+          "libelle": "Produit indisponible",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "retirer",
+          "libelle": "Retirer du panier",
+          "type": "texte",
+          "max": 20
+        },
+        {
+          "cle": "enStock",
+          "libelle": "Disponibilite",
+          "type": "texte",
+          "max": 40
+        },
+        {
+          "cle": "ecrireSurWhatsapp",
+          "libelle": "Ecrire sur WhatsApp",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "teinte",
+          "libelle": "Mot pour la teinte",
+          "type": "texte",
+          "max": 16
+        },
+        {
+          "cle": "teinteChoisie",
+          "libelle": "Teinte choisie",
+          "type": "texte",
+          "max": 24
+        },
+        {
+          "cle": "contenance",
+          "libelle": "Mot pour la contenance",
+          "type": "texte",
+          "max": 16
+        },
+        {
+          "cle": "tousLesRayons",
+          "libelle": "Filtre : tous les rayons",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "aucunResultat",
+          "libelle": "Rayon vide",
+          "type": "texte",
+          "max": 80
+        },
+        {
+          "cle": "produitsAuCatalogue",
+          "libelle": "Mots apres le nombre de produits",
+          "type": "texte",
+          "max": 30
+        },
+        {
+          "cle": "vaBienAvec",
+          "libelle": "Titre des suggestions",
+          "type": "texte",
+          "max": 30
+        }
+      ]
+    }
+  ]
+}
