@@ -121,12 +121,24 @@ const waLink = theme.identity.whatsapp
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-6);
+    gap: var(--space-3);
     min-height: var(--header-height);
+
+    @media (width >= 900px) {
+      gap: var(--space-6);
+    }
   }
 
+  /* Le logo a le droit de RETRECIR. Il etait a flex-shrink: 0, donc il gardait
+     sa largeur quoi qu'il arrive : « EDEN BY SARATIMA » fait ~245 px, les trois
+     boutons 134, et l'en-tete ne tenait que sur un ecran de 430 px ou plus.
+     Sur un telephone de 360 ou 390 px, les boutons sortaient de l'ecran et
+     toute la page defilait de cote (+62 et +35 px, mesure au navigateur).
+     Le template a ete pense pour un nom court (« TAARU ») ; un nom long doit
+     pouvoir passer sur deux lignes plutot que de casser la page. */
   .header__logo {
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-width: 0;
   }
 
   .header__logo-text {
@@ -136,6 +148,15 @@ const waLink = theme.identity.whatsapp
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--color-text);
+
+    /* Sous 480 px : police du texte courant et espacement des lettres resserre.
+       Le nom d'Eden tient alors sur une ligne des 375 px, et sur deux en
+       dessous (360 px et moins) au lieu de sortir de l'ecran. */
+    @media (width < 480px) {
+      font-size: var(--text-m);
+      letter-spacing: 0.08em;
+      line-height: 1.15;
+    }
   }
 
   .header__nav {
