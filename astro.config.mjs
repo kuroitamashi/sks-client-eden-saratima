@@ -1,4 +1,5 @@
-import { defineConfig } from 'astro/config';
+import { defineConfig, envField } from 'astro/config';
+import cloudflare from '@astrojs/cloudflare';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 
@@ -39,7 +40,29 @@ export default defineConfig({
    * Consequence concrete : le jour du basculement vers le domaine definitif,
    * il suffit de renseigner PUBLIC_BASE_URL. Rien d'autre ne bouge. */
   site: env.PUBLIC_BASE_URL || env.CF_PAGES_URL || 'http://localhost:4321',
+  /* `static` reste le mode par defaut : depuis Astro 5, une page passe en
+   * serveur en ecrivant `export const prerender = false`, sans changer
+   * `output`. L'accueil, la FAQ, la banniere restent donc figes au build
+   * et servis depuis le cache Cloudflare. Seules les pages qui montrent le
+   * catalogue (fiches, liste, commande) tournent sur le serveur, plus les
+   * deux sections produits de l'accueil, en `server:defer`. */
   output: 'static',
+  /* `passthrough` : le service d'images par defaut embarque sharp, qui
+   * appelle des fonctions Node (fs, child_process) que le serveur Cloudflare
+   * n'a pas. Le build passe, puis le deploiement echoue. Ce site n'utilise
+   * pas astro:assets : ses images sont des fichiers de public/, servis tels
+   * quels. */
+  adapter: cloudflare({ imageService: 'passthrough' }),
+  /* La cle SureCart est un SECRET lu a l'execution sur le serveur Cloudflare.
+   * `import.meta.env.SC_SECRET_KEY` ne marche qu'au build : sur le serveur,
+   * il rend undefined et le catalogue reste vide sans erreur. `astro:env`
+   * est le chemin prevu pour ca, et `access: 'secret'` garantit qu'elle ne
+   * peut jamais etre importee dans du code qui part chez le navigateur. */
+  env: {
+    schema: {
+      SC_SECRET_KEY: envField.string({ context: 'server', access: 'secret', optional: true }),
+    },
+  },
   vite: {
     resolve: {
       alias: {

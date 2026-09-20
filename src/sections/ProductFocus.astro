@@ -14,8 +14,10 @@
 import ProductMedia from '../components/ProductMedia.astro';
 import { getTheme, getContent } from '../lib/theme.js';
 import { formatMoney } from '../lib/format.js';
+import { getFeaturedProduct } from '../lib/products.js';
 
-const { product } = Astro.props;
+// Meme raison que CatalogRails : rendue en ilot serveur, elle lit son produit seule.
+const product = await getFeaturedProduct();
 const theme = await getTheme();
 const content = await getContent();
 const focus = content.productFocus;

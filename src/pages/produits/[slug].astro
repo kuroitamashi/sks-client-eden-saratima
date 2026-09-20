@@ -44,15 +44,24 @@ import { getTheme, getContent } from '../../lib/theme.js';
 import { listProducts } from '../../lib/products.js';
 import { formatMoney } from '../../lib/format.js';
 
-export async function getStaticPaths() {
-  const produits = await listProducts();
-  return produits.map((product) => ({
-    params: { slug: product.slug },
-    props: { product, tous: produits },
-  }));
+/* Rendue a la demande : un produit cree apres le dernier build a sa page
+   des la premiere minute. Avec getStaticPaths, son lien envoye sur WhatsApp
+   tombait sur une page introuvable jusqu'au rebuild.
+
+   Une seule lecture du catalogue : la fiche s'y retrouve par son slug, et
+   les suggestions en bas de page s'en servent aussi. */
+export const prerender = false;
+
+const { slug } = Astro.params;
+const tous = await listProducts();
+const product = tous.find((p) => p.slug === slug);
+
+if (!product) {
+  return new Response('Produit introuvable', { status: 404 });
 }
 
-const { product, tous } = Astro.props;
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+
 const theme = await getTheme();
 const content = await getContent();
 

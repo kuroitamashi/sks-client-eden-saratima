@@ -22,19 +22,13 @@
  *  precision qui voyage avec la ligne. Voir la note en tete de la fixture.
  */
 import { getTheme, getContent } from '../lib/theme.js';
-import { listProducts } from '../lib/products.js';
+import { listProducts, versPanier } from '../lib/products.js';
 
 const theme = await getTheme();
 const content = await getContent();
 const produits = await listProducts();
 
-const catalogue = produits.map((p) => ({
-  id: p.id,
-  name: p.name,
-  price: p.price,
-  image: p.images?.[0] ?? null,
-  format: p.format ?? null,
-}));
+const catalogue = produits.map(versPanier);
 
 /* La destination du bouton Commander, rendue des le serveur.
    Sans elle le bouton porte href="#" tant que le script n'a pas tourne : un
@@ -277,7 +271,7 @@ const config = {
   const totalEl = document.getElementById('cart-total');
   const checkout = document.getElementById('cart-checkout');
 
-  const catalogue = JSON.parse(document.getElementById('cart-catalogue').textContent);
+  let catalogue = JSON.parse(document.getElementById('cart-catalogue').textContent);
   const config = JSON.parse(document.getElementById('cart-config').textContent);
 
   const money = new Intl.NumberFormat(config.locale, {
@@ -320,8 +314,26 @@ const config = {
      silencieusement, rendrait et nettoierait en boucle sans fin. */
   let nettoyageFait = false;
 
+  /* Le catalogue embarque dans la page peut dater du dernier build : sur
+     l'accueil, figee, un produit ajoute depuis lui est inconnu. Avant de
+     declarer une ligne fantome, on redemande le catalogue au serveur, UNE
+     fois. `catalogueFrais` n'est vrai que si cette reponse est arrivee :
+     sans elle (reseau coupe), on n'efface rien, on ne sait pas. */
+  let rafraichi = false;
+  let catalogueFrais = false;
+
   function render() {
     const cart = read();
+
+    if (!rafraichi && cart.some((item) => !catalogue.some((p) => p.id === item.id))) {
+      rafraichi = true;
+      fetch('/api/catalogue.json')
+        .then((r) => (r.ok ? r.json() : Promise.reject()))
+        .then((frais) => { catalogue = frais; catalogueFrais = true; })
+        .catch(() => {})
+        .finally(render);
+    }
+
     const lignes = cart
       .map((item) => ({ ...item, produit: catalogue.find((p) => p.id === item.id) }))
       .filter((l) => l.produit);
@@ -340,7 +352,7 @@ const config = {
        la meme adresse, ce qui arrive en developpement puisque tous les
        templates SKS ecoutent le port 4321 et partagent donc le meme
        localStorage. */
-    if (!nettoyageFait && lignes.length !== cart.length) {
+    if (!nettoyageFait && catalogueFrais && lignes.length !== cart.length) {
       nettoyageFait = true;
       write(lignes.map((l) => ({ id: l.id, qty: l.qty, teinte: l.teinte || null })));
     }

@@ -5,6 +5,8 @@
  *  marchand : la cle secrete EST le branchement.
  */
 
+import { getSecret } from 'astro:env/server';
+
 /* L'identifiant de compte ne va PAS dans le chemin.
  *
  *  Ce fichier fabriquait `https://api.surecart.com/v1/<compte>/products`, qui
@@ -12,9 +14,12 @@
  *  Verifie contre l'API le 2026-09-09. DATA_SOURCE=surecart n'avait donc
  *  jamais pu fonctionner, et SC_ACCOUNT_ID ne sert a rien. */
 const BASE = 'https://api.surecart.com/v1';
-const TOKEN = import.meta.env.SC_SECRET_KEY;
 
 async function request(path) {
+  /* Lue A CHAQUE appel et non une fois en haut du fichier : sur Cloudflare,
+     les secrets n'existent qu'au moment de la requete, pas au chargement
+     du module. */
+  const TOKEN = getSecret('SC_SECRET_KEY');
   if (!TOKEN) {
     console.warn('[SureCart] SC_SECRET_KEY non configurée. Aucun produit récupéré.');
     return { data: [] };
@@ -50,9 +55,4 @@ const PUBLIES = 'status[]=published';
 export async function fetchProducts({ limit = 50 } = {}) {
   const data = await request(`/products?limit=${limit}&${PUBLIES}&expand[]=prices&expand[]=product_medias`);
   return data.data ?? [];
-}
-
-export async function fetchProductBySlug(slug) {
-  const data = await request(`/products?slug=${slug}&${PUBLIES}&expand[]=prices&expand[]=product_medias`);
-  return data.data?.[0] ?? null;
 }

@@ -19,3 +19,6 @@ dist/
 # Systeme
 .DS_Store
 Thumbs.db
+
+# Cache local de wrangler (wrangler pages dev)
+.wrangler/

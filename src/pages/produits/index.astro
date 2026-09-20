@@ -15,6 +15,12 @@ import Reassurance from '../../sections/Reassurance.astro';
 import { getContent } from '../../lib/theme.js';
 import { listProducts } from '../../lib/products.js';
 
+/* Rendue a chaque visite, pas au build : un produit ajoute par la
+   marchande apparait ici sans reconstruction. Le cache d'une minute evite
+   qu'un flot de visites ne se transforme en flot d'appels a SureCart. */
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+
 const produits = await listProducts();
 const content = await getContent();
 const page = content.cataloguePage;

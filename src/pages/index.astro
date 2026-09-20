@@ -7,24 +7,28 @@ import ProductFocus from '../sections/ProductFocus.astro';
 import Reviews from '../sections/Reviews.astro';
 import Faq from '../sections/Faq.astro';
 import Reassurance from '../sections/Reassurance.astro';
-import { listProducts, getFeaturedProduct } from '../lib/products.js';
-
-/* Un seul appel au catalogue pour toute la page. Les rangees et le rituel du
-   moment lisent la meme liste : impossible que la mise en avant annonce un
-   produit que les rangees ne contiennent pas.
-
-   La banniere, elle, ne lit PAS le catalogue : ses trois volets sont
-   editoriaux et vivent dans theme.config.js. */
-const produits = await listProducts();
-const focus = await getFeaturedProduct();
 ---
 
 <Default>
   <Hero />
   <Benefits />
-  <CatalogRails produits={produits} />
-  <ProductFocus product={focus} />
+  {/* Ces deux sections sont les SEULES de l'accueil a dependre du catalogue.
+      server:defer les sort de la page figee : le reste (banniere, FAQ,
+      avis) part instantanement depuis le cache, puis ces deux blocs se
+      remplissent avec le catalogue du moment. Le slot fallback reserve la
+      place pour que la page ne saute pas quand ils arrivent. */}
+  <CatalogRails server:defer>
+    <div slot="fallback" class="attente attente--rangees" aria-hidden="true"></div>
+  </CatalogRails>
+  <ProductFocus server:defer>
+    <div slot="fallback" class="attente attente--focus" aria-hidden="true"></div>
+  </ProductFocus>
   <Reviews />
   <Faq />
   <Reassurance />
 </Default>
+
+<style>
+  .attente--rangees { min-height: 36rem; }
+  .attente--focus { min-height: 28rem; }
+</style>

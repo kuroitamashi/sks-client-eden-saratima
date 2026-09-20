@@ -26,8 +26,12 @@
  */
 import ProductCard from '../components/ProductCard.astro';
 import { getContent } from '../lib/theme.js';
+import { listProducts } from '../lib/products.js';
 
-const { produits = [] } = Astro.props;
+/* La section va chercher ses produits ELLE-MEME. Elle est rendue en ilot
+   serveur (server:defer) : ses parametres voyageraient dans l'URL de
+   l'ilot, et vingt et un produits avec descriptions ne tiennent pas dedans. */
+const produits = await listProducts();
 const content = await getContent();
 
 let rayons = content.categories

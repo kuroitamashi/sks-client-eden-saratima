@@ -39,6 +39,12 @@ import { getTheme, getContent } from '../lib/theme.js';
 import { listProducts } from '../lib/products.js';
 import { formatMoney } from '../lib/format.js';
 
+/* Rendue a la demande, et ce n'est pas un confort : cette page envoie au
+   paiement le priceId lu dans SON catalogue. Un catalogue fige au build ne
+   connait pas un produit ajoute depuis, donc la cliente qui l'a mis au
+   panier ne pourrait pas le commander. */
+export const prerender = false;
+
 const theme = await getTheme();
 const content = await getContent();
 const produits = await listProducts();
