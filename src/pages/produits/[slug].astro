@@ -41,7 +41,7 @@ import Faq from '../../sections/Faq.astro';
 import Reviews from '../../sections/Reviews.astro';
 import Reassurance from '../../sections/Reassurance.astro';
 import { getTheme, getContent } from '../../lib/theme.js';
-import { listProducts } from '../../lib/products.js';
+import { listProducts, listCategories } from '../../lib/products.js';
 import { formatMoney } from '../../lib/format.js';
 
 /* Rendue a la demande : un produit cree apres le dernier build a sa page
@@ -66,7 +66,7 @@ const theme = await getTheme();
 const content = await getContent();
 
 const meta = product.metadata ?? {};
-const rayon = content.categories.find((c) => c.cle === meta.categorie) ?? null;
+const rayon = (await listCategories()).find((c) => c.cle === meta.categorie) ?? null;
 const teintes = meta.teintes ?? [];
 const images = product.images ?? [];
 

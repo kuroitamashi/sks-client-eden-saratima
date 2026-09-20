@@ -18,8 +18,18 @@
  *  jamais. Un element de moins a synchroniser, c'est un bug de moins.
  */
 import { getTheme, getContent } from '../lib/theme.js';
+import { listCategories } from '../lib/products.js';
 const theme = await getTheme();
 const content = await getContent();
+
+/* Le menu = les liens du fichier de theme, avec les rayons de la boutique
+   inseres apres le premier (<< Tous les produits >>). */
+const rayons = (await listCategories()).map((r) => ({
+  libelle: r.libelle,
+  href: `/produits/?rayon=${r.cle}`,
+}));
+const [tous, ...reste] = content.nav;
+const nav = [tous, ...rayons, ...reste];
 
 const logo = theme.identity.logoText ?? theme.identity.name;
 const waLink = theme.identity.whatsapp
@@ -44,7 +54,7 @@ const waLink = theme.identity.whatsapp
     </a>
 
     <nav class="header__nav" aria-label="Navigation principale">
-      {content.nav.map((item) => (
+      {nav.map((item) => (
         <a href={item.href} class="link">{item.libelle}</a>
       ))}
     </nav>
@@ -77,7 +87,7 @@ const waLink = theme.identity.whatsapp
 
 <div class="mobile-menu" id="mobile-menu" hidden>
   <nav class="container mobile-menu__nav" aria-label="Navigation mobile">
-    {content.nav.map((item) => (
+    {nav.map((item) => (
       <a href={item.href} class="mobile-menu__link">{item.libelle}</a>
     ))}
   </nav>

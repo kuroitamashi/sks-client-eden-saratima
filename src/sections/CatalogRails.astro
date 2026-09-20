@@ -26,7 +26,7 @@
  */
 import ProductCard from '../components/ProductCard.astro';
 import { getContent } from '../lib/theme.js';
-import { listProducts } from '../lib/products.js';
+import { listProducts, listCategories } from '../lib/products.js';
 
 /* La section va chercher ses produits ELLE-MEME. Elle est rendue en ilot
    serveur (server:defer) : ses parametres voyageraient dans l'URL de
@@ -34,7 +34,7 @@ import { listProducts } from '../lib/products.js';
 const produits = await listProducts();
 const content = await getContent();
 
-let rayons = content.categories
+let rayons = (await listCategories())
   .filter((c) => c.surAccueil)
   .map((c) => ({
     ...c,

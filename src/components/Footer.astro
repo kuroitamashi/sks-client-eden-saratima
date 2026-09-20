@@ -1,9 +1,14 @@
 ---
 import { getTheme, getContent } from '../lib/theme.js';
+import { listCategories } from '../lib/products.js';
 
 const theme = await getTheme();
 const content = await getContent();
 const annee = new Date().getFullYear();
+const rayons = (await listCategories()).map((r) => ({
+  libelle: r.libelle,
+  href: `/produits/?rayon=${r.cle}`,
+}));
 const logo = theme.identity.logoText ?? theme.identity.name;
 ---
 
@@ -39,7 +44,7 @@ const logo = theme.identity.logoText ?? theme.identity.name;
         <div class="footer__column">
           <h4 class="footer__column-title">{col.titre}</h4>
           <ul class="footer__links">
-            {col.liens.map((lien) => (
+            {(col.avecRayons ? [...col.liens, ...rayons] : col.liens).map((lien) => (
               <li><a href={lien.href} class="link">{lien.libelle}</a></li>
             ))}
           </ul>

@@ -53,6 +53,6 @@ async function request(path) {
 const PUBLIES = 'status[]=published';
 
 export async function fetchProducts({ limit = 50 } = {}) {
-  const data = await request(`/products?limit=${limit}&${PUBLIES}&expand[]=prices&expand[]=product_medias`);
+  const data = await request(`/products?limit=${limit}&${PUBLIES}&expand[]=prices&expand[]=product_medias&expand[]=product_collections`);
   return data.data ?? [];
 }

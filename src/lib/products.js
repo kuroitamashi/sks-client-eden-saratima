@@ -14,6 +14,7 @@
 
 import { products as fixtureProducts } from '../data/fixtures/cosmetiques.js';
 import { slugify } from './format.js';
+import { getContent } from './theme.js';
 
 const SOURCE = import.meta.env.DATA_SOURCE ?? 'surecart';
 
@@ -22,6 +23,11 @@ function normalizeFromSureCart(raw) {
   const prices = raw.prices?.data ?? raw.prices ?? [];
   const price = prices[0] ?? {};
   const medias = raw.product_medias?.data ?? raw.product_medias ?? [];
+  const collections = (raw.product_collections?.data ?? raw.product_collections ?? []).map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    position: c.position ?? 0,
+  }));
 
   return {
     id: raw.id,
@@ -56,7 +62,13 @@ function normalizeFromSureCart(raw) {
 
        Les teintes ne sont PAS des variantes SureCart : le modele produit du
        projet n'en a pas. Voir la note en tete de la fixture. */
-    metadata: raw.metadata ?? {},
+    collections,
+    /* Le rayon d'un produit est sa COLLECTION SureCart : c'est la
+       << Categorie >> que la marchande range dans son dashboard. Une
+       metadata.categorie explicite reste prioritaire. Un produit dans deux
+       collections n'apparait que dans la premiere.
+       ponytail: un produit, un rayon ; plusieurs rayons par produit le jour ou une marchande le demande. */
+    metadata: { ...(raw.metadata ?? {}), categorie: raw.metadata?.categorie ?? collections[0]?.slug },
   };
 }
 
@@ -111,3 +123,27 @@ export const versPanier = (p) => ({
   image: p.images?.[0] ?? null,
   format: p.format ?? null,
 });
+
+/** Les rayons de la boutique.
+ *
+ *  Ils viennent des collections des produits, pas d'un fichier : le menu
+ *  ecrivait << Soin du visage >> et << Maquillage >> (copies du template
+ *  cosmetique) chez une marchande dont l'unique collection est << Parfum
+ *  dubai >>, et un clic sur ces liens affichait tout le catalogue. Un rayon
+ *  vide n'existe pas : il ne peut naitre que d'un produit publie.
+ *
+ *  Hors SureCart (fixtures de demonstration), on retombe sur la liste du
+ *  fichier de theme. */
+export async function listCategories() {
+  const produits = await listProducts();
+  if (SOURCE !== 'surecart') return (await getContent()).categories;
+
+  const rayons = new Map();
+  for (const p of produits) {
+    const c = p.collections[0];
+    if (c && !rayons.has(c.slug)) {
+      rayons.set(c.slug, { cle: c.slug, libelle: c.name, surAccueil: true, position: c.position });
+    }
+  }
+  return [...rayons.values()].sort((a, b) => a.position - b.position);
+}

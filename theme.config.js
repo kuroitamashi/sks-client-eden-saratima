@@ -93,9 +93,8 @@ export const content = {
      ancre relative ne trouve pas la section qui n'existe que sur l'accueil,
      et le lien ne fait rien. */
   nav: [
+    // Les rayons (collections SureCart) s'inserent ici, apres le premier lien : voir Header.astro.
     { libelle: 'Tous les produits', href: '/produits/' },
-    { libelle: 'Soin du visage', href: '/produits/?rayon=soin-visage' },
-    { libelle: 'Maquillage', href: '/produits/?rayon=maquillage' },
     { libelle: 'Le rituel du moment', href: '/#focus' },
     { libelle: 'Questions', href: '/#faq' },
   ],
@@ -431,11 +430,9 @@ export const content = {
     colonnes: [
       {
         titre: 'La boutique',
+        avecRayons: true, // les collections SureCart s'ajoutent apres ces liens
         liens: [
           { libelle: 'Tous les produits', href: '/produits/' },
-          { libelle: 'Soin du visage', href: '/produits/?rayon=soin-visage' },
-          { libelle: 'Maquillage', href: '/produits/?rayon=maquillage' },
-          { libelle: 'Corps et cheveux', href: '/produits/?rayon=corps-cheveux' },
         ],
       },
       {

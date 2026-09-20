@@ -19,12 +19,13 @@
  */
 import ProductCard from '../components/ProductCard.astro';
 import { getContent } from '../lib/theme.js';
+import { listCategories } from '../lib/products.js';
 
 const { produits = [] } = Astro.props;
 const content = await getContent();
 
 // On ne montre que les rayons qui contiennent au moins un produit.
-const rayons = content.categories.filter((c) =>
+const rayons = (await listCategories()).filter((c) =>
   produits.some((p) => p.metadata?.categorie === c.cle)
 );
 ---
