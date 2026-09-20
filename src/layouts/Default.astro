@@ -150,6 +150,25 @@ const ogImage = theme.identity.ogImage ? new URL(theme.identity.ogImage, base).h
 
         revealEls.forEach((el) => io.observe(el));
 
+        /* CE QUI ARRIVE APRES LE CHARGEMENT.
+         *
+         *  Le querySelectorAll ci-dessus ne voit que ce qui est deja dans la
+         *  page. Les deux sections produits de l'accueil sont des ilots
+         *  serveur (server:defer) : leur HTML arrive plus tard, avec ses
+         *  data-reveal, et personne ne l'observait. Selon que l'ilot repondait
+         *  avant ou apres ce script, la section s'affichait ou restait
+         *  transparente pour toujours, un trou blanc de mille pixels.
+         *  Constate a l'ecran sur la preversion, une fois sur deux. */
+        new MutationObserver((mutations) => {
+          for (const m of mutations) {
+            for (const noeud of m.addedNodes) {
+              if (noeud.nodeType !== 1) continue;
+              if (noeud.matches('[data-reveal]')) io.observe(noeud);
+              noeud.querySelectorAll('[data-reveal]').forEach((el) => io.observe(el));
+            }
+          }
+        }).observe(document.getElementById('contenu'), { childList: true, subtree: true });
+
         /* LE FILET DE SECURITE DU BAS DE PAGE, ET IL CORRIGE UN VRAI BUG.
          *
          *  Le rootMargin de -15 % demande a un element d'avoir franchi le

@@ -95,7 +95,6 @@ export const content = {
   nav: [
     // Les rayons (collections SureCart) s'inserent ici, apres le premier lien : voir Header.astro.
     { libelle: 'Tous les produits', href: '/produits/' },
-    { libelle: 'Le rituel du moment', href: '/#focus' },
     { libelle: 'Questions', href: '/#faq' },
   ],
 
