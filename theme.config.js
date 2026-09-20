@@ -447,10 +447,15 @@ export const content = {
     mentions: 'Boutique propulsée par Sen Kheweul Store',
 
     /* Les logos de paiement du pied de page, dans l'ordre d'affichage.
-     *  Les fichiers sont dans public/paiements/, rognes et ramenes a 64 px de
-     *  haut : quinze kilo-octets pour les sept. `plein: true` pour une icone
-     *  carree qui a deja son fond (Wave, Djamo) : elle s'affiche seule, sans
-     *  pastille blanche autour.
+     *
+     *  Chaque logo est une CARTE de meme format (114 x 72, soit 3 fois 38 x 24
+     *  comme chez Shopify), fabriquee a partir du logo d'origine : Visa en
+     *  blanc sur fond bleu, Mastercard sur fond sombre, Wave et Djamo sur le
+     *  fond de leur icone, les autres en couleur sur fond blanc. Les fichiers
+     *  sont dans public/paiements/, neuf kilo-octets pour les sept.
+     *
+     *  `claire: true` pose un liseré fin autour d'une carte blanche, pour la
+     *  detacher du fond du pied de page. Les cartes colorees n'en ont pas.
      *
      *  ATTENTION, cette liste PROMET des moyens de paiement a la cliente. La
      *  page de commande n'en propose aujourd'hui que deux : le paiement a la
@@ -459,13 +464,13 @@ export const content = {
      *  du site. */
     paiementsLibelle: 'Moyens de paiement',
     paiements: [
-      { nom: 'Orange Money', logo: '/paiements/orange-money.webp', largeur: 126, hauteur: 64 },
-      { nom: 'Wave', logo: '/paiements/wave.webp', largeur: 64, hauteur: 64, plein: true },
-      { nom: 'Free Money', logo: '/paiements/free-money.webp', largeur: 165, hauteur: 64 },
-      { nom: 'E-Money', logo: '/paiements/e-money.webp', largeur: 132, hauteur: 64 },
-      { nom: 'Djamo', logo: '/paiements/djamo.webp', largeur: 64, hauteur: 64, plein: true },
-      { nom: 'Visa', logo: '/paiements/visa.webp', largeur: 194, hauteur: 64 },
-      { nom: 'Mastercard', logo: '/paiements/mastercard.svg', largeur: 96, hauteur: 64 },
+      { nom: 'Orange Money', logo: '/paiements/orange-money.webp', claire: true },
+      { nom: 'Wave', logo: '/paiements/wave.webp' },
+      { nom: 'Free Money', logo: '/paiements/free-money.webp', claire: true },
+      { nom: 'E-Money', logo: '/paiements/e-money.webp', claire: true },
+      { nom: 'Djamo', logo: '/paiements/djamo.webp' },
+      { nom: 'Visa', logo: '/paiements/visa.webp' },
+      { nom: 'Mastercard', logo: '/paiements/mastercard.webp' },
     ],
   },
 
