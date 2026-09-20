@@ -54,6 +54,16 @@ const logo = theme.identity.logoText ?? theme.identity.name;
   </div>
 
   <div class="container">
+    {content.footer.paiements?.length > 0 && (
+      <ul class="footer__paiements" aria-label={content.footer.paiementsLibelle}>
+        {content.footer.paiements.map((p) => (
+          <li class:list={['pastille', { 'pastille--icone': p.plein }]}>
+            <img src={p.logo} alt={p.nom} width={p.largeur} height={p.hauteur} loading="lazy" decoding="async" />
+          </li>
+        ))}
+      </ul>
+    )}
+
     <div class="footer__bottom">
       <p>© {annee} {theme.identity.name}</p>
       <p>{content.footer.mentions}</p>
@@ -122,6 +132,49 @@ const logo = theme.identity.logoText ?? theme.identity.name;
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
+  }
+
+  /* Les logos de paiement. Toutes les pastilles ont la meme hauteur, quelle
+     que soit la largeur du logo : c'est cela qui fait une rangee propre. Les
+     icones carrees qui ont deja leur fond (Wave, Djamo) n'ont pas de pastille
+     blanche : elles prennent la hauteur de la pastille et servent de pastille. */
+  .footer__paiements {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-12);
+  }
+
+  .pastille {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.5rem;
+    min-width: 3.5rem;
+    padding-inline: var(--space-3);
+    background: var(--color-bg);
+    border-radius: var(--radius-image);
+  }
+
+  .pastille img {
+    height: 1.5rem;
+    width: auto;
+  }
+
+  .pastille--icone {
+    min-width: 0;
+    padding: 0;
+    background: none;
+    overflow: hidden;
+  }
+
+  .pastille--icone img {
+    height: 100%;
+    border-radius: var(--radius-image);
+  }
+
+  .footer__paiements + .footer__bottom {
+    margin-top: var(--space-8);
   }
 
   .footer__bottom {

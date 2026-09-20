@@ -28,7 +28,9 @@
  *   3. Aucun logo de marque visible sur une image.
  *
  *  AVANT TOUTE MISE EN LIGNE REELLE, trois choses a changer :
- *   1. identity.whatsapp. Le numero ci-dessous est un PLACEHOLDER.
+ *   1. identity.whatsapp. Renseigne le 2026-09-20 (numero d'Awa). Quand le
+ *      tableau de bord SKS a un whatsappNumero pour la boutique, c'est lui
+ *      qui l'emporte (voir src/lib/theme.js).
  *   2. commerce.demoMode, a passer a false (voir son commentaire).
  *   3. Le catalogue de src/data/fixtures/cosmetiques.js.
  *  ---------------------------------------------------------------------
@@ -42,7 +44,7 @@ export const theme = {
     logoImage: null,
     favicon: '/favicon.svg',
     ogImage: null,
-    whatsapp: '+221770000000',
+    whatsapp: '+221 77 389 35 37',
     email: null,
     instagram: null,
   },
@@ -443,6 +445,28 @@ export const content = {
       },
     ],
     mentions: 'Boutique propulsée par Sen Kheweul Store',
+
+    /* Les logos de paiement du pied de page, dans l'ordre d'affichage.
+     *  Les fichiers sont dans public/paiements/, rognes et ramenes a 64 px de
+     *  haut : quinze kilo-octets pour les sept. `plein: true` pour une icone
+     *  carree qui a deja son fond (Wave, Djamo) : elle s'affiche seule, sans
+     *  pastille blanche autour.
+     *
+     *  ATTENTION, cette liste PROMET des moyens de paiement a la cliente. La
+     *  page de commande n'en propose aujourd'hui que deux : le paiement a la
+     *  livraison, et le paiement mobile declare (Wave, Orange Money, Free
+     *  Money, Wizall), sans carte. Retirer une ligne ici suffit a la retirer
+     *  du site. */
+    paiementsLibelle: 'Moyens de paiement',
+    paiements: [
+      { nom: 'Orange Money', logo: '/paiements/orange-money.webp', largeur: 126, hauteur: 64 },
+      { nom: 'Wave', logo: '/paiements/wave.webp', largeur: 64, hauteur: 64, plein: true },
+      { nom: 'Free Money', logo: '/paiements/free-money.webp', largeur: 165, hauteur: 64 },
+      { nom: 'E-Money', logo: '/paiements/e-money.webp', largeur: 132, hauteur: 64 },
+      { nom: 'Djamo', logo: '/paiements/djamo.webp', largeur: 64, hauteur: 64, plein: true },
+      { nom: 'Visa', logo: '/paiements/visa.webp', largeur: 194, hauteur: 64 },
+      { nom: 'Mastercard', logo: '/paiements/mastercard.svg', largeur: 96, hauteur: 64 },
+    ],
   },
 
   // Textes d'interface. Ils s'affichent, donc ils ne sont pas ecrits en dur.
