@@ -444,7 +444,23 @@ export const content = {
         ],
       },
     ],
-    mentions: 'Boutique propulsée par Sen Kheweul Store',
+    /* Le lien « propulse par » vers la landing page de la plateforme.
+     *
+     *  C'est un lien ORDINAIRE, sans nofollow, sans sponsored : c'est ce qui
+     *  lui permet de transmettre du poids a senkheweulstore.com. L'ancre est
+     *  le NOM de la marque, en vrai texte, et non un mot-cle : une ancre
+     *  optimisee repetee dans le pied de page de dizaines de boutiques est
+     *  exactement ce que les consignes de Google appellent un schema de
+     *  liens, alors qu'un nom de marque est ce qu'un « propulse par »
+     *  naturel contient. L'adresse est la forme canonique de la landing
+     *  (avec la barre finale), pour ne pas diluer le poids sur deux
+     *  variantes. */
+    propulsePar: {
+      texte: 'Boutique propulsée par',
+      nom: 'Sen Kheweul Store',
+      url: 'https://senkheweulstore.com/',
+      logo: '/branding/sks-logo-square.svg',
+    },
 
     /* Les logos de paiement du pied de page, dans l'ordre d'affichage.
      *

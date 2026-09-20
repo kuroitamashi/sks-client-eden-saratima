@@ -67,7 +67,15 @@ const logo = theme.identity.logoText ?? theme.identity.name;
         </ul>
       )}
 
-      <p class="footer__mentions">{content.footer.mentions}</p>
+      {content.footer.propulsePar && (
+        <p class="footer__mentions">
+          <span>{content.footer.propulsePar.texte}</span>
+          <a class="link footer__sks" href={content.footer.propulsePar.url} target="_blank" rel="noopener">
+            <img src={content.footer.propulsePar.logo} alt="" width="24" height="24" loading="lazy" decoding="async" />
+            <span>{content.footer.propulsePar.nom}</span>
+          </a>
+        </p>
+      )}
     </div>
   </div>
 </footer>
@@ -200,10 +208,34 @@ const logo = theme.identity.logoText ?? theme.identity.name;
     }
   }
 
+  /* La mention SKS : le texte, puis le lien avec l'icone de la plateforme.
+     L'icone est decorative (alt vide) : le nom ecrit a cote est deja la
+     description du lien, la repeter dans l'alt la ferait lire deux fois. */
+  .footer__mentions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+
+  .footer__sks {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+  }
+
+  .footer__sks img {
+    height: 1.5rem;
+    width: auto;
+  }
+
   @media (width >= 800px) {
     .footer__mentions {
       justify-self: end;
-      text-align: end;
+      justify-content: flex-end;
     }
 
     .footer__copyright {
