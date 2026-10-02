@@ -30,11 +30,8 @@ const produits = await listProducts();
 
 const catalogue = produits.map(versPanier);
 
-/* La destination du bouton Commander, rendue des le serveur.
-   Sans elle le bouton porte href="#" tant que le script n'a pas tourne : un
-   clic tres rapide, ou un script qui echoue, renvoie la cliente en haut de
-   la page au lieu de la page de commande. */
-const lienCommande = theme.commerce.checkoutUrl ?? '/commande/';
+/* La destination du bouton Commander, redirigeant vers le moteur de checkout SKS custom. */
+const lienCommande = '/checkout';
 
 const config = {
   currency: theme.commerce.currency,

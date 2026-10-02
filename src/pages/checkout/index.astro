@@ -1,0 +1,403 @@
+---
+import { getTheme, getContent } from '../../lib/theme.js';
+import { listProducts } from '../../lib/products.js';
+import {
+  generateCheckoutCssVariables,
+  getDefaultShippingZones,
+} from '@sks/checkout/index.js';
+import type { BrandingTokens } from '@sks/checkout/index.js';
+import CheckoutHeader from '@sks/checkout/ui/components/CheckoutHeader.astro';
+import ContactSection from '@sks/checkout/ui/components/ContactSection.astro';
+import DeliverySection from '@sks/checkout/ui/components/DeliverySection.astro';
+import PaymentSection from '@sks/checkout/ui/components/PaymentSection.astro';
+import CheckoutFooter from '@sks/checkout/ui/components/CheckoutFooter.astro';
+
+export const prerender = false;
+
+const theme = await getTheme();
+const content = await getContent();
+const produits = await listProducts();
+
+// Catalogue certifié en format léger pour affichage client
+const catalogue = produits.map((p: any) => ({
+  id: p.id,
+  name: p.name,
+  price: p.price,
+  format: p.format || '',
+  imageUrl: p.images?.[0] || '',
+}));
+
+const shippingZones = getDefaultShippingZones();
+
+const tokens: BrandingTokens = {
+  storeName: theme.identity.name,
+  storeUrl: '/',
+  supportPhone: theme.identity.whatsapp,
+  supportWhatsApp: theme.identity.whatsapp,
+  supportEmail: theme.identity.email || 'contact@edensaratima.sn',
+  colors: {
+    accent: theme.colors.accent || '#78253E',
+    background: theme.colors.bg || '#FFFFFF',
+    surface: theme.colors.surface || '#FBF4F6',
+    text: theme.colors.text || '#1F1418',
+    mutedText: theme.colors.secondary || '#947F87',
+    border: '#E5E7EB',
+  },
+  typography: {
+    fontDisplay: "'Plus Jakarta Sans', sans-serif",
+    fontBody: "'Plus Jakarta Sans', sans-serif",
+  },
+  radius: 'md',
+};
+
+const cssVars = generateCheckoutCssVariables(tokens);
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>Paiement sécurisé · {tokens.storeName}</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href={theme.identity.favicon} />
+    <style set:html={cssVars} />
+    <style>
+      body {
+        font-family: var(--sks-checkout-font-body, -apple-system, sans-serif);
+        background-color: var(--sks-checkout-bg, #F9FAFB);
+        color: var(--sks-checkout-text, #111827);
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+      }
+      h1, h2, h3, .font-display {
+        font-family: var(--sks-checkout-font-display, var(--sks-checkout-font-body));
+      }
+      input:focus, textarea:focus, select:focus {
+        border-color: var(--sks-checkout-accent) !important;
+        box-shadow: 0 0 0 1px var(--sks-checkout-accent);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col justify-between">
+    <CheckoutHeader tokens={tokens} />
+
+    <!-- Message Panier Vide si pas d'articles -->
+    <div id="emptyCartView" class="mx-auto max-w-xl px-4 py-16 text-center" hidden>
+      <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+        <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+        </svg>
+      </div>
+      <h1 class="text-xl font-bold text-[var(--sks-checkout-text)]">Votre panier est vide</h1>
+      <p class="mt-2 text-sm text-[var(--sks-checkout-muted)]">
+        Ajoutez des soins et produits de beauté pour finaliser votre commande.
+      </p>
+      <a
+        href="/produits/"
+        class="mt-6 inline-block rounded-[var(--sks-checkout-radius)] bg-[var(--sks-checkout-accent)] px-6 py-3 text-sm font-semibold text-[var(--sks-checkout-accent-contrast)] hover:opacity-90"
+      >
+        Découvrir nos soins
+      </a>
+    </div>
+
+    <!-- Conteneur Formulaire et Récapitulatif -->
+    <main id="checkoutMainView" class="mx-auto max-w-6xl w-full flex-1 px-4 py-6 sm:px-6 lg:py-10">
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-12">
+        <!-- Formulaire de commande (7 cols) -->
+        <div class="lg:col-span-7">
+          <form id="checkoutForm" action="/api/checkout/submit" method="POST" class="space-y-6">
+            <input type="hidden" name="cartJson" id="cartJsonInput" value="[]" />
+
+            <!-- Coordonnées -->
+            <ContactSection />
+
+            <!-- Livraison -->
+            <DeliverySection zones={shippingZones} selectedZoneId="dakar_ville" />
+
+            <!-- Paiement -->
+            <PaymentSection selectedMethod="cod" supportPayDunya={true} />
+
+            <!-- Bouton CTA Principal -->
+            <div class="pt-4">
+              <button
+                type="submit"
+                id="submitBtn"
+                class="w-full flex items-center justify-center gap-3 rounded-[var(--sks-checkout-radius)] bg-[var(--sks-checkout-accent)] px-6 py-4 text-sm font-bold text-[var(--sks-checkout-accent-contrast)] shadow-md transition-all hover:opacity-95 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span id="submitBtnText">
+                  Confirmer la commande
+                </span>
+              </button>
+
+              <div class="mt-3 flex items-center justify-center gap-4 text-center text-xs text-[var(--sks-checkout-muted)]">
+                <span>✓ Commande directe sans inscription</span>
+                <span>·</span>
+                <span>✓ Confirmation instantanée WhatsApp</span>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Récapitulatif Panier Desktop (5 cols) -->
+        <div class="lg:col-span-5">
+          <aside class="sticky top-6 rounded-[var(--sks-checkout-radius)] border border-[var(--sks-checkout-border)] bg-[var(--sks-checkout-surface)] p-6 shadow-sm space-y-6">
+            <div class="flex items-center justify-between border-b border-[var(--sks-checkout-border)] pb-3">
+              <h2 class="text-base font-semibold text-[var(--sks-checkout-text)]">
+                Récapitulatif de la commande (<span id="cartCount">0</span>)
+              </h2>
+            </div>
+
+            <!-- Liste des articles générée dynamiquement -->
+            <ul id="cartItemsList" class="divide-y divide-[var(--sks-checkout-border)] overflow-hidden" role="list">
+              <!-- Injecté par script client -->
+            </ul>
+
+            <!-- Code Promo -->
+            <div class="rounded-[var(--sks-checkout-radius)] border border-[var(--sks-checkout-border)] bg-slate-50/50 p-4">
+              <label for="promoCodeInput" class="block text-xs font-semibold text-[var(--sks-checkout-text)] mb-2">
+                Code promo
+              </label>
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  id="promoCodeInput"
+                  name="discountCodeProxy"
+                  placeholder="Ex: EDEN10"
+                  class="flex-1 rounded-[var(--sks-checkout-radius)] border border-[var(--sks-checkout-border)] bg-white px-3 py-2 text-xs uppercase tracking-wider text-[var(--sks-checkout-text)] outline-none"
+                />
+                <button
+                  type="button"
+                  id="applyPromoBtn"
+                  class="rounded-[var(--sks-checkout-radius)] border border-[var(--sks-checkout-border)] bg-slate-200 px-4 py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-300"
+                >
+                  Appliquer
+                </button>
+              </div>
+              <div id="promoFeedback" class="mt-2 text-xs font-medium" hidden></div>
+            </div>
+
+            <!-- Totaux -->
+            <div class="space-y-2 border-t border-[var(--sks-checkout-border)] pt-4 text-xs">
+              <div class="flex justify-between text-[var(--sks-checkout-muted)]">
+                <span>Sous-total articles</span>
+                <span class="font-medium text-[var(--sks-checkout-text)]" id="subtotalDisplay">0 FCFA</span>
+              </div>
+              <div class="flex justify-between text-[var(--sks-checkout-muted)]">
+                <span id="shippingLabel">Frais de livraison</span>
+                <span class="font-medium text-[var(--sks-checkout-text)]" id="shippingDisplay">2 000 FCFA</span>
+              </div>
+              <div id="discountRow" class="flex justify-between font-medium text-emerald-600" hidden>
+                <span>Réduction (<span id="discountCodeName"></span>)</span>
+                <span id="discountDisplay">-0 FCFA</span>
+              </div>
+              <div class="flex justify-between border-t border-[var(--sks-checkout-border)] pt-3 text-base font-bold text-[var(--sks-checkout-text)]">
+                <span>Total certifié</span>
+                <div class="text-right">
+                  <span class="text-lg text-[var(--sks-checkout-accent)]" id="totalDisplay">0 FCFA</span>
+                  <span class="block text-[10px] font-normal text-[var(--sks-checkout-muted)]">
+                    Paiement à la livraison
+                  </span>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+
+    <CheckoutFooter storeName={tokens.storeName} />
+
+    <!-- Script interactif de synchronisation panier, frais et totaux -->
+    <script is:inline define:vars={{ catalogueData: catalogue }}>
+      const catalogue = catalogueData;
+
+      function getCart() {
+        try {
+          return JSON.parse(localStorage.getItem('sks_cart') || '[]');
+        } catch {
+          return [];
+        }
+      }
+
+      function formatFCFA(montant) {
+        return montant.toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ') + ' FCFA';
+      }
+
+      let activeDiscount = 0;
+      let activeDiscountCode = '';
+
+      function renderCheckout() {
+        const cart = getCart();
+        const emptyView = document.getElementById('emptyCartView');
+        const mainView = document.getElementById('checkoutMainView');
+        const cartInput = document.getElementById('cartJsonInput');
+        const itemsList = document.getElementById('cartItemsList');
+        const cartCount = document.getElementById('cartCount');
+
+        if (!cart || cart.length === 0) {
+          if (emptyView) emptyView.hidden = false;
+          if (mainView) mainView.hidden = true;
+          return;
+        }
+
+        if (emptyView) emptyView.hidden = true;
+        if (mainView) mainView.hidden = false;
+        if (cartInput) cartInput.value = JSON.stringify(cart);
+
+        // Lignes du panier enrichies
+        const lines = cart
+          .map((item) => {
+            const product = catalogue.find((p) => p.id === item.id);
+            if (!product) return null;
+            return {
+              ...item,
+              product,
+              totalPrice: product.price * item.qty,
+            };
+          })
+          .filter(Boolean);
+
+        const totalQty = lines.reduce((acc, l) => acc + l.qty, 0);
+        const subtotal = lines.reduce((acc, l) => acc + l.totalPrice, 0);
+
+        if (cartCount) cartCount.textContent = String(totalQty);
+
+        if (itemsList) {
+          itemsList.innerHTML = lines
+            .map(
+              (l) => `
+            <li class="flex items-center gap-4 py-3">
+              <div class="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-[var(--sks-checkout-radius)] border border-[var(--sks-checkout-border)] bg-slate-100">
+                ${
+                  l.product.imageUrl
+                    ? `<img src="${l.product.imageUrl}" alt="${l.product.name}" class="h-full w-full object-cover" />`
+                    : `<div class="flex h-full w-full items-center justify-center text-xs font-bold text-slate-400">${l.product.name.charAt(0)}</div>`
+                }
+                <span class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white shadow-sm">
+                  ${l.qty}
+                </span>
+              </div>
+              <div class="flex flex-1 flex-col justify-center">
+                <h3 class="text-xs font-semibold text-[var(--sks-checkout-text)] line-clamp-1">${l.product.name}</h3>
+                ${l.teinte ? `<p class="text-[11px] text-[var(--sks-checkout-muted)]">Teinte : ${l.teinte}</p>` : ''}
+                <p class="text-[11px] text-[var(--sks-checkout-muted)]">${l.qty} × ${formatFCFA(l.product.price)}</p>
+              </div>
+              <div class="text-right">
+                <span class="text-xs font-bold text-[var(--sks-checkout-text)]">${formatFCFA(l.totalPrice)}</span>
+              </div>
+            </li>
+          `
+            )
+            .join('');
+        }
+
+        updatePricing(subtotal);
+      }
+
+      function updatePricing(subtotal) {
+        const selectedZoneRadio = document.querySelector('input[name="shippingZoneId"]:checked');
+        const shippingFee = selectedZoneRadio ? parseInt(selectedZoneRadio.getAttribute('data-fee') || '2000', 10) : 2000;
+        const zoneName = selectedZoneRadio ? selectedZoneRadio.getAttribute('data-name') : 'Dakar Ville';
+
+        const total = Math.max(0, subtotal + shippingFee - activeDiscount);
+
+        const subtotalEl = document.getElementById('subtotalDisplay');
+        const shippingEl = document.getElementById('shippingDisplay');
+        const totalEl = document.getElementById('totalDisplay');
+        const submitBtnText = document.getElementById('submitBtnText');
+        const shippingLabel = document.getElementById('shippingLabel');
+
+        if (subtotalEl) subtotalEl.textContent = formatFCFA(subtotal);
+        if (shippingEl) shippingEl.textContent = formatFCFA(shippingFee);
+        if (shippingLabel) shippingLabel.textContent = `Livraison (${zoneName})`;
+        if (totalEl) totalEl.textContent = formatFCFA(total);
+        if (submitBtnText) submitBtnText.textContent = `Confirmer la commande · ${formatFCFA(total)}`;
+      }
+
+      // Écoute des radios de livraison
+      document.querySelectorAll('input[name="shippingZoneId"]').forEach((radio) => {
+        radio.addEventListener('change', () => {
+          const cart = getCart();
+          const subtotal = cart.reduce((acc, item) => {
+            const p = catalogue.find((x) => x.id === item.id);
+            return acc + (p ? p.price * item.qty : 0);
+          }, 0);
+          updatePricing(subtotal);
+        });
+      });
+
+      // Gestion du Code Promo côté client
+      const applyBtn = document.getElementById('applyPromoBtn');
+      const promoInput = document.getElementById('promoCodeInput');
+      const promoFeedback = document.getElementById('promoFeedback');
+      const discountRow = document.getElementById('discountRow');
+      const discountDisplay = document.getElementById('discountDisplay');
+      const discountCodeName = document.getElementById('discountCodeName');
+
+      if (applyBtn && promoInput) {
+        applyBtn.addEventListener('click', () => {
+          const code = promoInput.value.trim().toUpperCase();
+          const cart = getCart();
+          const subtotal = cart.reduce((acc, item) => {
+            const p = catalogue.find((x) => x.id === item.id);
+            return acc + (p ? p.price * item.qty : 0);
+          }, 0);
+
+          if (code === 'EDEN10') {
+            activeDiscount = Math.round(subtotal * 0.1);
+            activeDiscountCode = 'EDEN10';
+            if (promoFeedback) {
+              promoFeedback.hidden = false;
+              promoFeedback.className = 'mt-2 text-xs font-semibold text-emerald-700';
+              promoFeedback.textContent = '✓ Code promo EDEN10 appliqué (-10%)';
+            }
+            if (discountRow) discountRow.hidden = false;
+            if (discountCodeName) discountCodeName.textContent = 'EDEN10';
+            if (discountDisplay) discountDisplay.textContent = `-${formatFCFA(activeDiscount)}`;
+          } else if (code === 'BIENVENUE5000' && subtotal >= 25000) {
+            activeDiscount = 5000;
+            activeDiscountCode = 'BIENVENUE5000';
+            if (promoFeedback) {
+              promoFeedback.hidden = false;
+              promoFeedback.className = 'mt-2 text-xs font-semibold text-emerald-700';
+              promoFeedback.textContent = '✓ Réduction BIENVENUE5000 appliquée (-5 000 FCFA)';
+            }
+            if (discountRow) discountRow.hidden = false;
+            if (discountCodeName) discountCodeName.textContent = 'BIENVENUE5000';
+            if (discountDisplay) discountDisplay.textContent = `-${formatFCFA(activeDiscount)}`;
+          } else {
+            activeDiscount = 0;
+            activeDiscountCode = '';
+            if (promoFeedback) {
+              promoFeedback.hidden = false;
+              promoFeedback.className = 'mt-2 text-xs font-semibold text-rose-600';
+              promoFeedback.textContent = '⚠️ Code promo invalide ou conditions non remplies';
+            }
+            if (discountRow) discountRow.hidden = true;
+          }
+
+          updatePricing(subtotal);
+        });
+      }
+
+      // Vider le panier local après validation réussie
+      const form = document.getElementById('checkoutForm');
+      if (form) {
+        form.addEventListener('submit', () => {
+          // On laisse le formulaire partir, et on planifie le vidage de sks_cart
+          setTimeout(() => {
+            localStorage.removeItem('sks_cart');
+          }, 100);
+        });
+      }
+
+      // Initialisation
+      renderCheckout();
+    </script>
+  </body>
+</html>

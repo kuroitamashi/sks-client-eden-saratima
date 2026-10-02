@@ -22,6 +22,7 @@ const env = loadEnv(process.env.NODE_ENV ?? '', process.cwd(), '');
  * page s'affichait donc SANS AUCUN STYLE en local, pendant que `astro build`
  * continuait de passer sans rien signaler. */
 const contractPath = fileURLToPath(new URL('./shared/theme-contract.js', import.meta.url));
+const checkoutPath = fileURLToPath(new URL('../../packages/sks-checkout/src', import.meta.url));
 
 // Le contrat de theme vit hors du template, dans templates/shared/, parce
 // qu'il est partage par tous les templates SKS. En attendant qu'un 2e template
@@ -67,13 +68,14 @@ export default defineConfig({
     resolve: {
       alias: {
         '@contract': contractPath,
+        '@sks/checkout': checkoutPath,
       },
     },
-    /* Il n'y a plus de `server.fs.allow` ici, et c'est voulu.
-     *
-     * Il servait quand le contrat vivait dans un dossier frere, hors du
-     * projet. Depuis que shared/ est DANS le depot, la liste blanche par
-     * defaut de Vite, qui est la racine du projet, couvre deja tout. En
-     * redefinir une ne faisait que REMPLACER la bonne par une plus etroite. */
+    server: {
+      fs: {
+        allow: ['.', contractPath, '../../packages'],
+      },
+    },
   },
 });
+

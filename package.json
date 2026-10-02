@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",
+    "@sks/checkout": "file:../../packages/sks-checkout",
     "astro": "^5.18.2"
   },
   "engines": {
