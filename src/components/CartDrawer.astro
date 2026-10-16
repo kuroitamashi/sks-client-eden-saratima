@@ -376,8 +376,11 @@ const config = {
       fetch('/api/catalogue.json')
         .then(r => (r.ok ? r.json() : Promise.reject()))
         .then(frais => {
-          catalogue = frais;
-          catalogueFrais = true;
+          // Une liste vide veut dire une panne du guichet : on ne vide jamais le panier sur une panne.
+          if (frais.length > 0) {
+            catalogue = frais;
+            catalogueFrais = true;
+          }
         })
         .catch(() => {})
         .finally(render);
@@ -486,6 +489,8 @@ const config = {
      cliente part sur la caisse centrale. Le total n'est jamais calcule ici :
      la caisse affiche celui du moteur. */
   const erreurCaisse = document.getElementById('cart-erreur');
+  // Texte d'origine (echec reseau), remplace temporairement par le message d'article indisponible.
+  const texteCaisse = erreurCaisse.textContent;
   let ouvertureEnCours = false;
   // Libelle d'origine, lu une fois : le bouton change de texte pendant l'ouverture.
   const libelleCommander = checkout.textContent;
@@ -496,14 +501,23 @@ const config = {
     if (ouvertureEnCours || checkout.getAttribute('aria-disabled') === 'true') return;
 
     // La teinte d'une ligne n'est pas envoyee : le moteur n'a pas ce champ.
-    const lines = read()
+    const panier = read();
+    const lines = panier
       .map(l => ({ produit: catalogue.find(p => p.id === l.id), qty: l.qty }))
       .filter(l => l.produit?.variantId)
       .map(l => ({ variant_id: l.produit.variantId, quantity: l.qty }));
-    if (lines.length === 0) return;
+    // Une ligne ecartee (article retire du catalogue) ou aucune ligne envoyable : on n'ouvre pas la caisse avec moins d'articles.
+    if (lines.length === 0 || lines.length < panier.length) {
+      erreurCaisse.textContent = lines.length === 0
+        ? 'Impossible d’ouvrir la caisse pour le moment. Réessaie dans un instant.'
+        : 'Un article de ton panier n’est plus disponible. Retire-le puis réessaie.';
+      erreurCaisse.hidden = false;
+      return;
+    }
 
     ouvertureEnCours = true;
     erreurCaisse.hidden = true;
+    erreurCaisse.textContent = texteCaisse;
     checkout.setAttribute('aria-disabled', 'true');
     checkout.textContent = 'Ouverture de la caisse…';
 
