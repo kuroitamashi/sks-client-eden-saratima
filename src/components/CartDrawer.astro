@@ -22,13 +22,17 @@
  *  precision qui voyage avec la ligne. Voir la note en tete de la fixture.
  */
 import { getTheme, getContent } from '../lib/theme.js';
-import { listProducts, versPanier } from '../lib/products.js';
+import { listProducts, versPanier, moteurSks } from '../lib/products.js';
 
 const theme = await getTheme();
 const content = await getContent();
 const produits = await listProducts();
 
 const catalogue = produits.map(versPanier);
+
+/* Moteur SKS : le clic sur Commander cree un panier du moteur et ouvre la
+   caisse centrale. Le lien vers /checkout reste le repli sans script. */
+const moteur = moteurSks();
 
 /* La destination du bouton Commander, redirigeant vers le moteur de checkout SKS custom. */
 const lienCommande = '/checkout';
@@ -37,6 +41,7 @@ const config = {
   currency: theme.commerce.currency,
   locale: theme.commerce.locale,
   checkoutUrl: lienCommande,
+  moteur,
   ui: content.ui,
 };
 ---
@@ -76,6 +81,9 @@ const config = {
         <span id='cart-total'></span>
       </div>
       <p class='cart__note'>{content.ui.livraisonCalculee}</p>
+      <p class='cart__erreur' id='cart-erreur' role='alert' hidden>
+        Impossible d’ouvrir la caisse pour le moment. Réessaie dans un instant.
+      </p>
       <a
         class='btn btn--primary btn--full'
         id='cart-checkout'
@@ -193,6 +201,11 @@ const config = {
 
   .cart__note {
     color: var(--color-text-muted);
+  }
+
+  .cart__erreur {
+    color: var(--color-text);
+    font-weight: 600;
   }
 
   .cart__empty {
@@ -348,9 +361,9 @@ const config = {
   let nettoyageFait = false;
 
   /* Le catalogue embarque dans la page peut dater du dernier build : sur
-     l'accueil, figee, un produit ajoute depuis lui est inconnu. Avant de
-     declarer une ligne fantome, on redemande le catalogue au serveur, UNE
-     fois. `catalogueFrais` n'est vrai que si cette reponse est arrivee :
+     l'accueil, prerendue, un prix change par la marchande ou un produit
+     ajoute depuis serait faux ou inconnu. On redemande donc le catalogue au
+     serveur, UNE fois, des que le panier n'est pas vide. `catalogueFrais` n'est vrai que si cette reponse est arrivee :
      sans elle (reseau coupe), on n'efface rien, on ne sait pas. */
   let rafraichi = false;
   let catalogueFrais = false;
@@ -358,10 +371,7 @@ const config = {
   function render() {
     const cart = read();
 
-    if (
-      !rafraichi &&
-      cart.some(item => !catalogue.some(p => p.id === item.id))
-    ) {
+    if (!rafraichi && cart.length > 0) {
       rafraichi = true;
       fetch('/api/catalogue.json')
         .then(r => (r.ok ? r.json() : Promise.reject()))
@@ -471,6 +481,60 @@ const config = {
 
     checkout.href = config.checkoutUrl;
   }
+
+  /* Moteur SKS : le panier du navigateur devient un panier du moteur, puis la
+     cliente part sur la caisse centrale. Le total n'est jamais calcule ici :
+     la caisse affiche celui du moteur. */
+  const erreurCaisse = document.getElementById('cart-erreur');
+  let ouvertureEnCours = false;
+  // Libelle d'origine, lu une fois : le bouton change de texte pendant l'ouverture.
+  const libelleCommander = checkout.textContent;
+
+  checkout.addEventListener('click', async e => {
+    if (!config.moteur) return;
+    e.preventDefault();
+    if (ouvertureEnCours || checkout.getAttribute('aria-disabled') === 'true') return;
+
+    // La teinte d'une ligne n'est pas envoyee : le moteur n'a pas ce champ.
+    const lines = read()
+      .map(l => ({ produit: catalogue.find(p => p.id === l.id), qty: l.qty }))
+      .filter(l => l.produit?.variantId)
+      .map(l => ({ variant_id: l.produit.variantId, quantity: l.qty }));
+    if (lines.length === 0) return;
+
+    ouvertureEnCours = true;
+    erreurCaisse.hidden = true;
+    checkout.setAttribute('aria-disabled', 'true');
+    checkout.textContent = 'Ouverture de la caisse…';
+
+    try {
+      const { apiUrl, slug, caisseUrl } = config.moteur;
+      const res = await fetch(`${apiUrl}/api/public/boutiques/${encodeURIComponent(slug)}/paniers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lines }),
+      });
+      const data = res.ok ? await res.json() : null;
+      if (!data?.cart?.id) throw new Error(`Panier non cree (${res.status})`);
+      window.location.href = `${caisseUrl}/${encodeURIComponent(slug)}/${data.cart.id}`;
+    } catch (err) {
+      console.error('[vitrine] ouverture de la caisse', err);
+      ouvertureEnCours = false;
+      checkout.textContent = libelleCommander;
+      checkout.setAttribute('aria-disabled', 'false');
+      erreurCaisse.hidden = false;
+    }
+  });
+
+  /* Retour arriere depuis la caisse : la page revient du cache avec le bouton
+     fige sur << Ouverture de la caisse... >>. On le remet en etat. */
+  window.addEventListener('pageshow', e => {
+    if (e.persisted) {
+      ouvertureEnCours = false;
+      checkout.textContent = libelleCommander;
+      render();
+    }
+  });
 
   function change(k, delta) {
     const cart = read();
