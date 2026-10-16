@@ -31,11 +31,11 @@ const produits = await listProducts();
 const catalogue = produits.map(versPanier);
 
 /* Moteur SKS : le clic sur Commander cree un panier du moteur et ouvre la
-   caisse centrale. Le lien vers /checkout reste le repli sans script. */
+   caisse centrale. Le lien vers /commande/ reste le repli sans script (sous sks, elle renvoie a l'accueil). */
 const moteur = moteurSks();
 
-/* La destination du bouton Commander, redirigeant vers le moteur de checkout SKS custom. */
-const lienCommande = '/checkout';
+/* La destination du bouton Commander, repli sans script. */
+const lienCommande = '/commande/';
 
 const config = {
   currency: theme.commerce.currency,
