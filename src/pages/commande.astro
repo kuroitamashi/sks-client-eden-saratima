@@ -45,6 +45,11 @@ import { formatMoney } from '../lib/format.js';
    panier ne pourrait pas le commander. */
 export const prerender = false;
 
+/* Sur le moteur SKS, la commande se passe sur la caisse centrale. Cette page
+   commandait par SureCart : une cliente qui y arrive (ancien lien, page en
+   cache) repart sur l'accueil, ou son panier l'attend. */
+if (import.meta.env.DATA_SOURCE === 'sks') return Astro.redirect('/', 302);
+
 const theme = await getTheme();
 const content = await getContent();
 const produits = await listProducts();

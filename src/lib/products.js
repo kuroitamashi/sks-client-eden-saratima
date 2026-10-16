@@ -6,6 +6,7 @@
  *
  *      DATA_SOURCE=fixture    -> src/data/fixtures/cosmetiques.js
  *      DATA_SOURCE=surecart   -> l'API SureCart, avec la cle du marchand
+ *      DATA_SOURCE=sks        -> le guichet du moteur SKS (voir moteurSks)
  *
  *  normalize() est la piece qui rend les deux sources interchangeables :
  *  quelle que soit l'origine, une page recoit toujours la meme forme
@@ -17,6 +18,76 @@ import { slugify } from './format.js';
 import { getContent } from './theme.js';
 
 const SOURCE = import.meta.env.DATA_SOURCE ?? 'surecart';
+
+/* DATA_SOURCE=sks : le catalogue vient du guichet du moteur SKS, et le bouton
+ * Commander ouvre la caisse centrale. Trois adresses, publiques :
+ *
+ *      SKS_API_URL          le moteur (dashboard)
+ *      SKS_BOUTIQUE_SLUG    la boutique
+ *      SKS_CHECKOUT_URL     la caisse centrale
+ *
+ * Il en manque une, on s'arrete : une vitrine qui enverrait ses clientes vers
+ * une caisse inexistante ne doit pas partir en ligne. Repris de xam-xam. */
+export function moteurSks() {
+  if (SOURCE !== 'sks') return null;
+  const env = import.meta.env;
+  const apiUrl = env.SKS_API_URL || env.PUBLIC_SKS_API_URL;
+  const slug = env.SKS_BOUTIQUE_SLUG || env.PUBLIC_SKS_BOUTIQUE_SLUG;
+  const caisseUrl = env.SKS_CHECKOUT_URL || env.PUBLIC_SKS_CHECKOUT_URL;
+  if (!apiUrl || !slug || !caisseUrl) {
+    throw new Error('[vitrine] DATA_SOURCE=sks exige SKS_API_URL, SKS_BOUTIQUE_SLUG et SKS_CHECKOUT_URL.');
+  }
+  const sansSlash = (u) => String(u).replace(/\/+$/, '');
+  return { apiUrl: sansSlash(apiUrl), slug, caisseUrl: sansSlash(caisseUrl) };
+}
+
+/* Le moteur range les prix en FCFA entiers. Une seule variante par produit :
+ * c'est son identifiant que la caisse attend. Le rayon vient du type de
+ * produit, la « Catégorie » du dashboard. */
+function normalizeFromSks(raw) {
+  const variant = raw.variants?.find((v) => v.available) ?? raw.variants?.[0] ?? {};
+  const collections = raw.productType
+    ? [{ slug: slugify(raw.productType), name: raw.productType, position: 0 }]
+    : [];
+  return {
+    id: String(raw.id),
+    slug: raw.handle,
+    name: raw.title,
+    subtitle: raw.description ? String(raw.description).slice(0, 90) : '',
+    price: variant.price ?? 0,
+    comparePrice: variant.compareAtPrice ?? null,
+    images: raw.images ?? [],
+    description: raw.description ?? '',
+    inStock: Boolean(variant.available),
+    stock: null,
+    format: variant.sku ?? null,
+    priceId: null,
+    variantId: variant.id ?? null,
+    collections,
+    metadata: { categorie: collections[0]?.slug },
+  };
+}
+
+/* Sur Cloudflare, une panne du guichet rend une liste vide, comme le client
+ * SureCart : une page produit ne tombe pas en 500, et la memoire ne garde
+ * jamais le vide. A la construction (Node), elle arrete tout : on ne publie
+ * pas une vitrine sans produits. */
+const surCloudflare = globalThis.navigator?.userAgent === 'Cloudflare-Workers';
+
+async function fetchSksProducts() {
+  const { apiUrl, slug } = moteurSks();
+  const url = `${apiUrl}/api/public/boutiques/${encodeURIComponent(slug)}/catalogue`;
+  try {
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`Catalogue du moteur indisponible (${res.status}, ${url})`);
+    const data = await res.json();
+    return (data.products ?? []).map(normalizeFromSks);
+  } catch (err) {
+    if (!surCloudflare) throw new Error(`[vitrine] ${err.message}`);
+    console.error(`[vitrine] ${err.message}`);
+    return [];
+  }
+}
 
 /** La forme unique qu'une page voit, quelle que soit la source. */
 function normalizeFromSureCart(raw) {
@@ -87,12 +158,13 @@ const TTL_MS = 60_000;
 let memo = null;
 
 export async function listProducts() {
-  if (SOURCE !== 'surecart') return fixtureProducts;
+  if (SOURCE !== 'surecart' && SOURCE !== 'sks') return fixtureProducts;
 
   if (memo && Date.now() - memo.at < TTL_MS) return memo.produits;
 
-  const { fetchProducts } = await import('./surecart-client.js');
-  const produits = (await fetchProducts()).map(normalizeFromSureCart);
+  const produits = SOURCE === 'sks'
+    ? await fetchSksProducts()
+    : (await (await import('./surecart-client.js')).fetchProducts()).map(normalizeFromSureCart);
   memo = produits.length > 0 ? { at: Date.now(), produits } : null;
   return produits;
 }
@@ -122,6 +194,7 @@ export const versPanier = (p) => ({
   price: p.price,
   image: p.images?.[0] ?? null,
   format: p.format ?? null,
+  variantId: p.variantId ?? null,
 });
 
 /** Les rayons de la boutique.
@@ -136,7 +209,7 @@ export const versPanier = (p) => ({
  *  fichier de theme. */
 export async function listCategories() {
   const produits = await listProducts();
-  if (SOURCE !== 'surecart') return (await getContent()).categories;
+  if (SOURCE !== 'surecart' && SOURCE !== 'sks') return (await getContent()).categories;
 
   const rayons = new Map();
   for (const p of produits) {
