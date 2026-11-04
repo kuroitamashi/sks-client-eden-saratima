@@ -94,6 +94,9 @@ const ogImage = theme.identity.ogImage ? new URL(theme.identity.ogImage, base).h
         scoperait le selecteur en :root[data-astro-cid-...], qui ne
         correspond a rien, et tout le theme tomberait a l'eau. */}
     <style is:inline set:html={`:root {\n  ${themeCss}\n}`}></style>
+
+    {/* Ce qu'une page ajoute au <head> : la fiche produit y pose son JSON-LD. */}
+    <slot name="head" />
   </head>
 
   <body>

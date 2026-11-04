@@ -43,6 +43,7 @@ import Reassurance from '../../sections/Reassurance.astro';
 import { getTheme, getContent } from '../../lib/theme.js';
 import { listProducts, listCategories } from '../../lib/products.js';
 import { formatMoney } from '../../lib/format.js';
+import { productJsonLd } from '../../lib/catalog-public.js';
 
 /* Rendue a la demande : un produit cree apres le dernier build a sa page
    des la premiere minute. Avec getStaticPaths, son lien envoye sur WhatsApp
@@ -92,6 +93,14 @@ const memeRayon = tous
 ---
 
 <Default title={product.name} description={product.subtitle}>
+  {/* Ce que Google et les assistants IA lisent : prix, stock, images. */}
+  <script
+    slot="head"
+    type="application/ld+json"
+    is:inline
+    set:html={productJsonLd(product, { theme, site: Astro.site ?? Astro.url.origin })}
+  />
+
   <section class="section--m">
     <div class="container">
       <nav class="crumbs" aria-label="Fil d'Ariane">
