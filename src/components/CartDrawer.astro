@@ -492,6 +492,14 @@ const config = {
   // Texte d'origine (echec reseau), remplace temporairement par le message d'article indisponible.
   const texteCaisse = erreurCaisse.textContent;
   let ouvertureEnCours = false;
+
+  // Origine retenue par la mise en page ; rien si absente ou stockage bloque.
+  function origine() {
+    try {
+      const { source, referrer } = JSON.parse(localStorage.getItem('sks_origine') || 'null') ?? {};
+      return source || referrer ? { origine: { source, referrer } } : {};
+    } catch { return {}; }
+  }
   // Libelle d'origine, lu une fois : le bouton change de texte pendant l'ouverture.
   const libelleCommander = checkout.textContent;
 
@@ -526,7 +534,7 @@ const config = {
       const res = await fetch(`${apiUrl}/api/public/boutiques/${encodeURIComponent(slug)}/paniers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lines }),
+        body: JSON.stringify({ lines, ...origine() }),
       });
       const data = res.ok ? await res.json() : null;
       if (!data?.cart?.id) throw new Error(`Panier non cree (${res.status})`);

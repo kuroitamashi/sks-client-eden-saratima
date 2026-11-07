@@ -110,6 +110,17 @@ const ogImage = theme.identity.ogImage ? new URL(theme.identity.ogImage, base).h
     <WhatsAppFloat />
 
     <script>
+      /* Origine de la visiteuse : retenue a chaque page, envoyee avec le panier. */
+      import { origineAGarder, CLE_ORIGINE } from '../lib/origine-visite.js';
+      try {
+        const avant = JSON.parse(localStorage.getItem(CLE_ORIGINE) || 'null');
+        const apres = origineAGarder(location.href, document.referrer, location.hostname, avant, Date.now());
+        if (apres) localStorage.setItem(CLE_ORIGINE, JSON.stringify(apres));
+        else localStorage.removeItem(CLE_ORIGINE);
+      } catch { /* stockage bloque : la commande passe sans origine */ }
+    </script>
+
+    <script>
       /* Apparition au defilement, une seule fois par element.
        *
        *  Le decalage en cascade est calcule AU MOMENT de l'apparition, pas
